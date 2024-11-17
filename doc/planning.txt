@@ -1,0 +1,106 @@
+CHIP-8 docs: 
+http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
+https://tobiasvl.github.io/blog/write-a-chip-8-emulator/
+
+Description: Technically, a CHIP-8 interpreter, not an emulator, since Chip-8 is simple programming language. 
+
+Summarizing specifications:
+
+Memory:
+Memory Map:
++---------------+= 0xFFF (4095) End of Chip-8 RAM
+|               |
+|               |
+|               |
+|               |
+|               |
+| 0x200 to 0xFFF|
+|     Chip-8    |
+| Program / Data|
+|     Space     |
+|               |
+|               |
+|               |
++- - - - - - - -+= 0x600 (1536) Start of ETI 660 Chip-8 programs
+|               |
+|               |
+|               |
++---------------+= 0x200 (512) Start of most Chip-8 programs
+| 0x000 to 0x1FF|
+| Reserved for  |
+|  interpreter  |
++---------------+= 0x000 (0) Start of Chip-8 RAM
+
+4KB (4096 bytes) -> 2^12 addresses 
+Writable
+
+Registers:
+16 general purpose 8-bit variable registers: Vx where x is hexadec (0 to F)
+ - VF should not be used by any a program; used as a flag by some instructions
+16-bit index register I: stores memory addresses
+2 special purpose 8-bit registers: delay and sound timers
+ - both decremented at 60 Hz as long as non-zero
+ - both active whenever non-zero; both deactivate when hits zero
+ - buzzer makes a sound, which is up to author
+
+"Pseudo-registers": 
+ - program counter (PC), 16-bit, stores currently executing address
+ - stack pointer (SP), 8-bit, stores 
+ 
+Stack: 
+ - array of 16 16-bit addresses
+ - stores the address that the interpreter should return when finished with a subroutine
+
+(note: the addresses are 12 bit, so the lowest bits are usually used)
+
+Keyboard:
+16-key hexadec
+1	2	3	C
+4	5	6	D
+7	8	9	E
+A	0	B	F
+
+Display:
+Sprite - group of bytes which represent a desired picture
+Font - group of sprites representing hex digs 0 to F
+Put the font in memory reserved for chip-8
+
+0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+0x20, 0x60, 0x20, 0x20, 0x70, // 1
+0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+
+Display is 64x32-pixels
+(0,0)	(63,0)
+(0,31)	(63,31)
+ - monochrome
+ - Updated at 60 Hz
+
+Fetch-decode-execute:
+- refresher: https://en.wikipedia.org/wiki/Instruction_cycle
+- take note of speed: try 700 instructions / s
+
+Chip-8 Instructions:
+- 2 bytes long
+- stored MSB first
+- in memory, first byte of each instruction should be in even addresses
+- see docs for each instruction
+
+variables used:
+ - nnn or addr: lowest 12 bits of instruction
+ - n or nibble: lowest 4 bits
+ - x: lower 4 bits of the high byte
+ - y: lower 4 bits of the low byte
+ - kk or byte: lowest 8 bits
