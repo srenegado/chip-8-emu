@@ -9,11 +9,11 @@ int main() {
     while (true) {
         SDL_Event event;
         
-        while (SDL_PollEvent(&event)) {
+        while (SDL_PollEvent(&event)) { // read event queue
             switch (event.type) {
 
                 case SDL_KEYDOWN:
-                    if (event.key.keysym.scancode == 20) 
+                    if (event.key.keysym.scancode == 20) // 'q' scancode is 20
                         goto quit;
                 
                 default:
