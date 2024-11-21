@@ -37,24 +37,29 @@ int main() {
     unsigned short PC = 0x200; // program counter
     unsigned char stack[32] = {0}; // for storing up to 16 addresses
 
-    // unsigned char lsb = PC & 0xFF;
+    // unsigned char lsb = PC & 0xFF;   
     // unsigned char msb = (PC >> 8) & 0xF;
 
     // printf("program counter = 0x%03x\n", PC);
     // printf("msb = 0x%02x\n", msb);  
     // printf("lsb = 0x%02x\n", lsb);  
 
-    while (true) {
-        SDL_Event event;
+    int cpu_freq = 500; // instructions per second (1 instruction ~ 1 cycle)
+    int refresh_rate = 60; // frames per second
+    int instrs_per_frame = cpu_freq / refresh_rate;
 
-        char user_pressed_key;
-        
+    bool running = true;
+    while (running) {
+
+        SDL_Event event;
+        char user_pressed_key = '\0';
+
         while (SDL_PollEvent(&event)) { // read event queue
             switch (event.type) {
 
-                case SDL_KEYDOWN: // read user key press
+                case SDL_KEYDOWN: // user pressed a key
 
-                    switch (event.key.keysym.scancode) {
+                    switch (event.key.keysym.scancode) { // read key
                         case 30:
                             user_pressed_key = '1';
                             break;
@@ -116,14 +121,20 @@ int main() {
             }
         }
 
-        // fetch
+        for (int i = 0; i < instrs_per_frame; i++) {
+            // fetch
+            printf("Fetch instruction!\n");
 
 
-        // decode
+            // decode
+            printf("Decode instruction!\n");
 
+            // execute
+            printf("Execute instruction!\n");
+        }
 
-        // execute
-
+        // update display
+        printf("\nUpdating display...\n\n");
     }
 
 quit:
