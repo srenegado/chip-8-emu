@@ -28,30 +28,101 @@ int main() {
     }; // store font in first 512 bytes
 
     // for (int i = 0; i < 100; i++)
-    //     printf("mem[%d] = 0x%02x\n", i, mem[i]);
+    //     printf("mem[0x%03x] = 0x%02x\n", i, mem[i]);
 
     unsigned char Vx[16] = {0}; // variable registers: V0 to VF
     unsigned char I[2] = {0}; // index register
     unsigned char delay_timer = {0};
     unsigned char sound_timer = {0};
-    unsigned char PC[2] = {0}; // program counter
+    unsigned short PC = 0x200; // program counter
     unsigned char stack[32] = {0}; // for storing up to 16 addresses
+
+    // unsigned char lsb = PC & 0xFF;
+    // unsigned char msb = (PC >> 8) & 0xF;
+
+    // printf("program counter = 0x%03x\n", PC);
+    // printf("msb = 0x%02x\n", msb);  
+    // printf("lsb = 0x%02x\n", lsb);  
 
     while (true) {
         SDL_Event event;
+
+        char user_pressed_key;
         
         while (SDL_PollEvent(&event)) { // read event queue
             switch (event.type) {
 
-                case SDL_KEYDOWN:
-                    if (event.key.keysym.scancode == 20) // 'q' scancode is 20
-                        goto quit;
+                case SDL_KEYDOWN: // read user key press
+
+                    switch (event.key.keysym.scancode) {
+                        case 30:
+                            user_pressed_key = '1';
+                            break;
+                        case 31:
+                            user_pressed_key = '2';
+                            break;
+                        case 32:
+                            user_pressed_key = '3';
+                            break;
+                        case 33:
+                            user_pressed_key = 'C';
+                            break;
+                        case 20:
+                            user_pressed_key = '4';
+                            break;
+                        case 26:
+                            user_pressed_key = '5';
+                            break;
+                        case 8:
+                            user_pressed_key = '6';
+                            break;
+                        case 21:
+                            user_pressed_key = 'D';
+                            break;
+                        case 4:
+                            user_pressed_key = '7';
+                            break;
+                        case 22:
+                            user_pressed_key = '8';
+                            break;
+                        case 7:
+                            user_pressed_key = '9';
+                            break;
+                        case 9:
+                            user_pressed_key = 'E';
+                            break;
+                        case 29:
+                            user_pressed_key = 'A';
+                            break;
+                        case 27:
+                            user_pressed_key = '0';
+                            break;
+                        case 6:
+                            user_pressed_key = 'B';
+                            break;
+                        case 25:
+                            user_pressed_key = 'F';
+                            break;
+                        case 41: // esc
+                            goto quit;
+                            break;
+                    }
+            
+                    break;
                 
                 default:
                     break;
                     
             }
         }
+
+        // fetch
+
+
+        // decode
+
+
+        // execute
 
     }
 
