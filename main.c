@@ -3,10 +3,11 @@
 #include <stdio.h>
 
 int main() {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+    SDL_Init(SDL_INIT_VIDEO);
 
-    SDL_CreateWindow("Chip-8", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 64 * 16, 32 * 16, 0);
-
+    SDL_Window* display = SDL_CreateWindow("Chip-8", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 64 * 16, 32 * 16, 0);
+    SDL_Surface* display_surface = SDL_GetWindowSurface(display);
+    
     // main memory
     unsigned char mem[4096] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -35,7 +36,8 @@ int main() {
     unsigned char delay_timer = {0};
     unsigned char sound_timer = {0};
     unsigned short PC = 0x200; // program counter
-    unsigned char stack[32] = {0}; // for storing up to 16 addresses
+    unsigned short stack[16] = {0}; // for storing up to 16 addresses
+    unsigned char stack_ptr = 0;
 
     // unsigned char lsb = PC & 0xFF;   
     // unsigned char msb = (PC >> 8) & 0xF;
@@ -123,18 +125,61 @@ int main() {
 
         for (int i = 0; i < instrs_per_frame; i++) {
             // fetch
-            printf("Fetch instruction!\n");
+            // printf("Fetch instruction!\n");
 
+            // copy instruction PC is pointing to
+            unsigned char msb = mem[PC];
+            unsigned char lsb = mem[PC + 1]; // NN
+
+            // extract values for decoding
+            unsigned char first_nib = (msb >> 4) & 0xF;
+            unsigned char second_nib = msb & 0xF; // X
+            unsigned char third_nib = (lsb >> 4) & 0xF; // Y
+            unsigned char fourth_nib = lsb & 0xF; // N
+            unsigned short lowest_12_bits = ((short)second_nib << 8) | (short)lsb; // NNN
+
+            // PC += 2;
+
+            // printf("first nib = 0x%.1x\n", first_nib);
+            // printf("second nib = 0x%.1x\n", second_nib);
+            // printf("third nib = 0x%.1x\n", third_nib);
+            // printf("fourth nib = 0x%.1x\n", fourth_nib);
+            // printf("second byte = 0x%.2x\n", lsb);
+            // printf("lowest twelve bits = 0x%03x\n", lowest_12_bits);
 
             // decode
-            printf("Decode instruction!\n");
+            // printf("Decode instruction!\n");
+            
+
+            switch (first_nib) {
+
+                case (0x0):
+                    // ignore 0NNN instruction
+
+                    if (lowest_12_bits == 0x0E0) {// CLS - clear screen
+                        SDL_FillRect(display_surface, NULL, 0);
+                    }
+                    // else if (ldb == 0xEE) { // RET
+                    //     PC = stack[stack_ptr];
+                    //     stack_ptr -= 1;
+                    // }
+
+                    break;
+
+                case (0x1):
+                    break; 
+                
+
+            }
 
             // execute
-            printf("Execute instruction!\n");
+            // printf("Execute instruction!\n");
         }
 
         // update display
-        printf("\nUpdating display...\n\n");
+        // printf("\nUpdating display...\n\n");
+        SDL_UpdateWindowSurface(display);
+        
     }
 
 quit:
