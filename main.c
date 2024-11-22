@@ -42,15 +42,6 @@ int main(int argc, char** argv) {
     rom_file = fopen(argv[1], "rb");
     fread(start_addr, 4096 - 512, 1, rom_file);
 
-    // int i = 0x200;
-    // for(; i < (0x200 + 150); i++) {
-    //     if ((i - 0x200) % 16 == 0 && i != 0) 
-    //         printf("\n");
-        
-    //     printf("%02x ", mem[i]); // prints a series of bytes
-        
-    // }
-
     // printf("0x00: ");
     // for(int i = 0; i < 4096; i++) {
     //     if (i % 16 == 0 && i != 0) {
@@ -170,49 +161,47 @@ int main(int argc, char** argv) {
             // printf("lowest twelve bits = 0x%03x\n", lowest_12_bits);
 
             // decode and execute
-            // printf("Decode instruction!\n");
-            // printf("Execute instruction!\n");
-
             switch (first_nib) {
 
                 case (0x0):
                     // ignore 0NNN instruction
 
                     if (lowest_12_bits == 0x0E0) { // 00E0 - clear screen
+                        printf("instruction 0x00E0\n");
                         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // black
                         SDL_RenderClear(renderer);
-                        memset(display_arr, 0, sizeof(display_arr));
+                        memset(display_arr, 0, sizeof(display_arr));  
                     }
                     break;
                 case (0x1): // 1NNN - jump
-                    PC = lowest_12_bits;
+                    // printf("instruction 0x1%03x\n", lowest_12_bits);
+                    PC = lowest_12_bits;  
                     break; 
                 case (0x6): // 6XNN - set
-                    Vx[second_nib] = lsb;
+                    // printf("instruction 0x6%1x%02x\n", second_nib, lsb);
+                    Vx[second_nib] = lsb;   
                     break;
                 case (0x7): // 7XNN - add
-                    Vx[second_nib] += lsb;
+                    // printf("instruction 0x7%1x%02x\n", second_nib, lsb);
+                    Vx[second_nib] += lsb; 
                     break;
                 case (0xA): // ANNN - set I
-                    I = lowest_12_bits;
+                    // printf("instruction 0xA%03x\n", lowest_12_bits);
+                    I = lowest_12_bits; 
                     break;
                 case (0xD): // DXYN - display
 
                     // starting position wraps around
-                    unsigned char x = Vx[second_nib] % 64; 
-                    unsigned char y = Vx[third_nib] % 32;
+                    unsigned char x = Vx[second_nib] % DISPLAY_WIDTH_PX; 
+                    unsigned char y = Vx[third_nib] % DISPLAY_HEIGHT_PX;
+
+                    // printf("instruction 0x%02x%02x: Drawing at (%d, %d)\n", msb, lsb, x, y);  
 
                     Vx[0xF] = 0; // turn off collision
 
                     for (int i = 0; i < fourth_nib; i++) { // read N bytes    
                         unsigned char byte = mem[I + i]; // start from I
-
                         for (int j = 7; j >= 0; j--) { // read each bit
-                            if (x >= DISPLAY_WIDTH_PX) { // stop
-                                x = Vx[second_nib] % 64; 
-                                break;
-                            }
-
                             unsigned char bit = (byte & (1 << j)) >> j; 
                             if (bit == 1) {
                                 SDL_Rect r; // create "pixel" to-scale
@@ -220,15 +209,14 @@ int main(int argc, char** argv) {
                                 r.y = y * SCALE;
                                 r.w = SCALE;
                                 r.h = SCALE;
-
-                                if (display_arr[x][y] == 1) { // turn off
-                                    display_arr[x][y] = 0;
+                                if (display_arr[y][x] == 1) { // turn off
+                                    display_arr[y][x] = 0;
                                     SDL_SetRenderDrawColor(renderer, 
                                         0, 0, 0, 255); // black
-                                    Vx[0xF] = 1;
+                                    Vx[0xF] = 1; // turn on collision
                                 } 
                                 else { // turn on
-                                    display_arr[x][y] = 1;
+                                    display_arr[y][x] = 1;
                                     SDL_SetRenderDrawColor(renderer, 
                                         255, 255, 255, 255); // white
                                 }
@@ -236,14 +224,17 @@ int main(int argc, char** argv) {
                             } 
 
                             x++;
+                            if (x >= DISPLAY_WIDTH_PX) // stop
+                                break;
                         }
 
-                        x = Vx[second_nib] % 64; // reset x for next row
+                        // reset x for next row
+                        x = Vx[second_nib] % DISPLAY_WIDTH_PX; 
 
                         y++;
                         if (y >= DISPLAY_HEIGHT_PX) // stop
                             break;
-                    }     
+                    }    
 
                     break;
 
