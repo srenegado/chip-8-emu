@@ -138,9 +138,9 @@ int main(int argc, char** argv) {
             }
         }
 
-        for (int i = 0; i < instrs_per_frame; i++) {
-            // fetch
-            // copy instruction PC is pointing to
+        for (int i = 0; i < instrs_per_frame; i++) { // fetch-decode-execute
+
+            // fetch: copy instruction PC is pointing to
             unsigned char msb = mem[PC];
             unsigned char lsb = mem[PC + 1]; // NN
 
@@ -194,21 +194,23 @@ int main(int argc, char** argv) {
                     // starting position wraps around
                     unsigned char x = Vx[second_nib] % DISPLAY_WIDTH_PX; 
                     unsigned char y = Vx[third_nib] % DISPLAY_HEIGHT_PX;
-
                     // printf("instruction 0x%02x%02x: Drawing at (%d, %d)\n", msb, lsb, x, y);  
 
                     Vx[0xF] = 0; // turn off collision
 
                     for (int i = 0; i < fourth_nib; i++) { // read N bytes    
                         unsigned char byte = mem[I + i]; // start from I
+
                         for (int j = 7; j >= 0; j--) { // read each bit
-                            unsigned char bit = (byte & (1 << j)) >> j; 
+                            unsigned char bit = (byte & (1 << j)) >> j;
+
                             if (bit == 1) {
                                 SDL_Rect r; // create "pixel" to-scale
                                 r.x = x * SCALE;
                                 r.y = y * SCALE;
                                 r.w = SCALE;
                                 r.h = SCALE;
+                                
                                 if (display_arr[y][x] == 1) { // turn off
                                     display_arr[y][x] = 0;
                                     SDL_SetRenderDrawColor(renderer, 
@@ -237,12 +239,10 @@ int main(int argc, char** argv) {
                     }    
 
                     break;
-
             }
         }
 
         SDL_RenderPresent(renderer);
-        
     }
 
 quit:
