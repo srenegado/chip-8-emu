@@ -41,6 +41,7 @@ int main(int argc, char** argv) {
     FILE* rom_file;
     rom_file = fopen(argv[1], "rb");
     fread(start_addr, 4096 - 512, 1, rom_file);
+    fclose(rom_file);
 
     // printf("0x00: ");
     // for(int i = 0; i < 4096; i++) {
@@ -48,9 +49,7 @@ int main(int argc, char** argv) {
     //         printf("\n");
     //         printf("0x%02x: ", i);
     //     }
-        
     //     printf("%02x ", mem[i]); // prints a series of bytes
-        
     // }
 
     unsigned char Vx[16] = {0}; // variable registers: V0 to VF
@@ -153,13 +152,6 @@ int main(int argc, char** argv) {
 
             PC += 2;
 
-            // printf("first nib = 0x%.1x\n", first_nib);
-            // printf("second nib = 0x%.1x\n", second_nib);
-            // printf("third nib = 0x%.1x\n", third_nib);
-            // printf("fourth nib = 0x%.1x\n", fourth_nib);
-            // printf("second byte = 0x%.2x\n", lsb);
-            // printf("lowest twelve bits = 0x%03x\n", lowest_12_bits);
-
             // decode and execute
             switch (first_nib) {
 
@@ -167,26 +159,21 @@ int main(int argc, char** argv) {
                     // ignore 0NNN instruction
 
                     if (lowest_12_bits == 0x0E0) { // 00E0 - clear screen
-                        printf("instruction 0x00E0\n");
                         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // black
                         SDL_RenderClear(renderer);
                         memset(display_arr, 0, sizeof(display_arr));  
                     }
                     break;
                 case (0x1): // 1NNN - jump
-                    // printf("instruction 0x1%03x\n", lowest_12_bits);
                     PC = lowest_12_bits;  
                     break; 
                 case (0x6): // 6XNN - set
-                    // printf("instruction 0x6%1x%02x\n", second_nib, lsb);
                     Vx[second_nib] = lsb;   
                     break;
                 case (0x7): // 7XNN - add
-                    // printf("instruction 0x7%1x%02x\n", second_nib, lsb);
                     Vx[second_nib] += lsb; 
                     break;
                 case (0xA): // ANNN - set I
-                    // printf("instruction 0xA%03x\n", lowest_12_bits);
                     I = lowest_12_bits; 
                     break;
                 case (0xD): // DXYN - display
@@ -194,7 +181,6 @@ int main(int argc, char** argv) {
                     // starting position wraps around
                     unsigned char x = Vx[second_nib] % DISPLAY_WIDTH_PX; 
                     unsigned char y = Vx[third_nib] % DISPLAY_HEIGHT_PX;
-                    // printf("instruction 0x%02x%02x: Drawing at (%d, %d)\n", msb, lsb, x, y);  
 
                     Vx[0xF] = 0; // turn off collision
 
