@@ -6,7 +6,7 @@
 #define DISPLAY_HEIGHT_PX 32
 #define SCALE 16
 
-int main() {
+int main(int argc, char** argv) {
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_Window* display = SDL_CreateWindow("Chip-8", SDL_WINDOWPOS_CENTERED, 
@@ -35,8 +35,32 @@ int main() {
         0xF0, 0x80, 0xF0, 0x80, 0x80, // F
     }; // store font in first 512 bytes
 
-    // for (int i = 0; i < 100; i++)
-    //     printf("mem[0x%03x] = 0x%02x\n", i, mem[i]);
+    // load ROM into memory
+    unsigned short start = 0x200;
+    char* start_addr = &mem[start];
+    FILE* rom_file;
+    rom_file = fopen(argv[1], "rb");
+    fread(start_addr, 4096 - 512, 1, rom_file);
+
+    // int i = 0x200;
+    // for(; i < (0x200 + 150); i++) {
+    //     if ((i - 0x200) % 16 == 0 && i != 0) 
+    //         printf("\n");
+        
+    //     printf("%02x ", mem[i]); // prints a series of bytes
+        
+    // }
+
+    // printf("0x00: ");
+    // for(int i = 0; i < 4096; i++) {
+    //     if (i % 16 == 0 && i != 0) {
+    //         printf("\n");
+    //         printf("0x%02x: ", i);
+    //     }
+        
+    //     printf("%02x ", mem[i]); // prints a series of bytes
+        
+    // }
 
     unsigned char Vx[16] = {0}; // variable registers: V0 to VF
     unsigned short I = 0x000; // index register
@@ -45,12 +69,6 @@ int main() {
     unsigned short PC = 0x200; // program counter
     unsigned short stack[16] = {0}; // for storing up to 16 addresses
     unsigned char stack_ptr = 0;
-
-    // unsigned char lsb = PC & 0xFF;   
-    // unsigned char msb = (PC >> 8) & 0xF;
-    // printf("program counter = 0x%03x\n", PC);
-    // printf("msb = 0x%02x\n", msb);  
-    // printf("lsb = 0x%02x\n", lsb);  
 
     int cpu_freq = 500; // instructions per second (1 instruction ~ 1 cycle)
     int refresh_rate = 60; // frames per second
@@ -131,8 +149,6 @@ int main() {
 
         for (int i = 0; i < instrs_per_frame; i++) {
             // fetch
-            // printf("Fetch instruction!\n");
-
             // copy instruction PC is pointing to
             unsigned char msb = mem[PC];
             unsigned char lsb = mem[PC + 1]; // NN
@@ -144,7 +160,7 @@ int main() {
             unsigned char fourth_nib = lsb & 0xF; // N
             unsigned short lowest_12_bits = ((short)second_nib << 8) | (short)lsb; // NNN
 
-            // PC += 2;
+            PC += 2;
 
             // printf("first nib = 0x%.1x\n", first_nib);
             // printf("second nib = 0x%.1x\n", second_nib);
@@ -165,11 +181,8 @@ int main() {
                     if (lowest_12_bits == 0x0E0) { // 00E0 - clear screen
                         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // black
                         SDL_RenderClear(renderer);
+                        memset(display_arr, 0, sizeof(display_arr));
                     }
-                    // else if (ldb == 0xEE) { // 00EE - return from subroutine 
-                    //     PC = stack[stack_ptr];
-                    //     stack_ptr -= 1;
-                    // }
                     break;
                 case (0x1): // 1NNN - jump
                     PC = lowest_12_bits;
@@ -181,7 +194,7 @@ int main() {
                     Vx[second_nib] += lsb;
                     break;
                 case (0xA): // ANNN - set I
-                    I = lsb;
+                    I = lowest_12_bits;
                     break;
                 case (0xD): // DXYN - display
 
@@ -191,49 +204,47 @@ int main() {
 
                     Vx[0xF] = 0; // turn off collision
 
-                    for (int i = 0; i < fourth_nib; i++) { // read N bytes
-                        
-                        // start from address I
-                        unsigned char byte = mem[I + i]; 
+                    for (int i = 0; i < fourth_nib; i++) { // read N bytes    
+                        unsigned char byte = mem[I + i]; // start from I
 
                         for (int j = 7; j >= 0; j--) { // read each bit
-
-                            if (x >= DISPLAY_WIDTH_PX) { // draw next row
+                            if (x >= DISPLAY_WIDTH_PX) { // stop
                                 x = Vx[second_nib] % 64; 
                                 break;
                             }
 
-                            // get bit at position j
                             unsigned char bit = (byte & (1 << j)) >> j; 
-                            
                             if (bit == 1) {
-                                SDL_Rect r; // create scaled "pixel"
+                                SDL_Rect r; // create "pixel" to-scale
                                 r.x = x * SCALE;
                                 r.y = y * SCALE;
                                 r.w = SCALE;
                                 r.h = SCALE;
 
                                 if (display_arr[x][y] == 1) { // turn off
-                                    display_arr[x][y] == 0;
+                                    display_arr[x][y] = 0;
                                     SDL_SetRenderDrawColor(renderer, 
                                         0, 0, 0, 255); // black
-                                    SDL_RenderFillRect(renderer, &r);
                                     Vx[0xF] = 1;
-                                } else { // turn on
-                                    display_arr[x][y] == 1;
+                                } 
+                                else { // turn on
+                                    display_arr[x][y] = 1;
                                     SDL_SetRenderDrawColor(renderer, 
                                         255, 255, 255, 255); // white
-                                    SDL_RenderFillRect(renderer, &r);
                                 }
+                                SDL_RenderFillRect(renderer, &r); 
                             } 
 
                             x++;
                         }
 
+                        x = Vx[second_nib] % 64; // reset x for next row
+
                         y++;
-                        if (y >= DISPLAY_HEIGHT_PX) // stop drawing
+                        if (y >= DISPLAY_HEIGHT_PX) // stop
                             break;
-                    }                    
+                    }     
+
                     break;
 
             }
