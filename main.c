@@ -2,16 +2,18 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#define DISPLAY_WIDTH_PIX 64
-#define DISPLAY_HEIGHT_PIX 32
+#define DISPLAY_WIDTH_PX 64
+#define DISPLAY_HEIGHT_PX 32
+#define SCALE 16
 
 int main() {
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_Window* display = SDL_CreateWindow("Chip-8", SDL_WINDOWPOS_CENTERED, 
-        SDL_WINDOWPOS_CENTERED, DISPLAY_WIDTH_PIX * 16, DISPLAY_HEIGHT_PIX * 16, 0);
-    SDL_Surface* display_surface = SDL_GetWindowSurface(display);
-    unsigned char display_arr[DISPLAY_HEIGHT_PIX][DISPLAY_WIDTH_PIX] = {0};
+        SDL_WINDOWPOS_CENTERED, DISPLAY_WIDTH_PX * SCALE, 
+        DISPLAY_HEIGHT_PX * SCALE, 0);
+    SDL_Renderer* renderer = SDL_CreateRenderer(display, -1, SDL_RENDERER_ACCELERATED);
+    unsigned char display_arr[DISPLAY_HEIGHT_PX][DISPLAY_WIDTH_PX] = {0};
     
     // main memory
     unsigned char mem[4096] = {
@@ -161,7 +163,8 @@ int main() {
                     // ignore 0NNN instruction
 
                     if (lowest_12_bits == 0x0E0) { // 00E0 - clear screen
-                        SDL_FillRect(display_surface, NULL, 0);
+                        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // black
+                        SDL_RenderClear(renderer);
                     }
                     // else if (ldb == 0xEE) { // 00EE - return from subroutine 
                     //     PC = stack[stack_ptr];
@@ -193,24 +196,34 @@ int main() {
                         // start from address I
                         unsigned char byte = mem[I + i]; 
 
-                        for (int j = 0; j < 8; j++) { // read each bit
+                        for (int j = 7; j >= 0; j--) { // read each bit
 
-                            if (x >= DISPLAY_WIDTH_PIX) { // draw next row
+                            if (x >= DISPLAY_WIDTH_PX) { // draw next row
                                 x = Vx[second_nib] % 64; 
-                                continue;
+                                break;
                             }
 
                             // get bit at position j
                             unsigned char bit = (byte & (1 << j)) >> j; 
                             
                             if (bit == 1) {
+                                SDL_Rect r; // create scaled "pixel"
+                                r.x = x * SCALE;
+                                r.y = y * SCALE;
+                                r.w = SCALE;
+                                r.h = SCALE;
+
                                 if (display_arr[x][y] == 1) { // turn off
                                     display_arr[x][y] == 0;
-                                    // fill black rect on surface
+                                    SDL_SetRenderDrawColor(renderer, 
+                                        0, 0, 0, 255); // black
+                                    SDL_RenderFillRect(renderer, &r);
                                     Vx[0xF] = 1;
                                 } else { // turn on
                                     display_arr[x][y] == 1;
-                                    // fill white rect on surface
+                                    SDL_SetRenderDrawColor(renderer, 
+                                        255, 255, 255, 255); // white
+                                    SDL_RenderFillRect(renderer, &r);
                                 }
                             } 
 
@@ -218,7 +231,7 @@ int main() {
                         }
 
                         y++;
-                        if (y >= DISPLAY_HEIGHT_PIX) // stop drawing
+                        if (y >= DISPLAY_HEIGHT_PX) // stop drawing
                             break;
                     }                    
                     break;
@@ -226,9 +239,7 @@ int main() {
             }
         }
 
-        // update display
-        // printf("\nUpdating display...\n\n");
-        SDL_UpdateWindowSurface(display);
+        SDL_RenderPresent(renderer);
         
     }
 
