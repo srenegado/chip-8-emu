@@ -171,7 +171,21 @@ int main(int argc, char** argv) {
                 case (0x1): // 1NNN - jump
                     // printf("Instruction: Jump\n");
                     PC = lowest_12_bits;  
-                    break; 
+                    break;
+                case (0x3): // 3XNN - skip conditionally
+                    // printf("Instruction: skip conditionally");
+                    if (Vx[second_nib] == lsb) 
+                        PC += 2;
+                    break;
+                case (0x4): // 4XNN - skip conditionally
+                    // printf("Instruction: skip conditionally");
+                    if (Vx[second_nib] != lsb)
+                        PC += 2;
+                case (0x5): // 5XY0 - skip conditionally
+                    // printf("Instruction: skip conditionally");
+                    if (Vx[second_nib] == Vx[third_nib])
+                        PC += 2;
+                    break;
                 case (0x6): // 6XNN - set
                     // printf("Instruction: Set Vx\n");
                     Vx[second_nib] = lsb;   
@@ -179,6 +193,37 @@ int main(int argc, char** argv) {
                 case (0x7): // 7XNN - add
                     // printf("Instruction: Add to Vx\n");
                     Vx[second_nib] += lsb; 
+                    break;
+                case (0x8):
+                    switch (fourth_nib) {
+                        case (0x1): // 8XY1 - OR
+                            Vx[second_nib] |= Vx[third_nib]; 
+                            break;
+                        case (0x2): // 8XY2 - AND
+                            Vx[second_nib] &= Vx[third_nib];
+                            break;
+                        case (0x3): // 8XY3 - XOR
+                            Vx[second_nib] ^= Vx[third_nib];
+                            break;
+                        case (0x5): // 8XY5 - subtract
+                            if (Vx[second_nib] > Vx[third_nib]) {
+                                Vx[second_nib] -= Vx[third_nib];
+                                Vx[0xF] = 1;
+                            } else { // underflow
+                                Vx[second_nib] = 0;
+                                Vx[0xF] = 0;
+                            }
+                            break;
+                        case (0x7): // 8XY7 - subtract
+                            if (Vx[third_nib] > Vx[second_nib]) {
+                                Vx[second_nib] = Vx[third_nib] - Vx[second_nib];
+                                Vx[0xF] = 1;
+                            } else { // underflow
+                                Vx[second_nib] = 0;
+                                Vx[0xF] = 0;
+                            }
+                            break;
+                    }
                     break;
                 case (0xA): // ANNN - set I
                     // printf("Instruction: Set I\n");
@@ -238,7 +283,12 @@ int main(int argc, char** argv) {
             }
         }
 
-        if (draw_flag) {
+        /*
+         * Due to how SDL_RenderPresent() is implemented,
+         * only call it following a drawing instruction
+         * https://wiki.libsdl.org/SDL2/SDL_RenderPresent
+         **/ 
+        if (draw_flag) { 
             SDL_RenderPresent(renderer);
             draw_flag = false;
         }
