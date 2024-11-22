@@ -9,13 +9,13 @@
 int main(int argc, char** argv) {
     SDL_Init(SDL_INIT_VIDEO);
 
-    SDL_Window* display = SDL_CreateWindow("Chip-8", SDL_WINDOWPOS_CENTERED, 
-        SDL_WINDOWPOS_CENTERED, DISPLAY_WIDTH_PX * SCALE, 
-        DISPLAY_HEIGHT_PX * SCALE, 0);
+    SDL_Window* display = SDL_CreateWindow("Chip-8", 
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
+        DISPLAY_WIDTH_PX * SCALE, DISPLAY_HEIGHT_PX * SCALE, 0);
     SDL_Renderer* renderer = SDL_CreateRenderer(display, -1, SDL_RENDERER_ACCELERATED);
     unsigned char display_arr[DISPLAY_HEIGHT_PX][DISPLAY_WIDTH_PX] = {0};
     
-    // main memory
+    // Main memory
     unsigned char mem[4096] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
         0xF0, 0x80, 0xF0, 0x80, 0x80, // F
     }; // store font in first 512 bytes
 
-    // load ROM into memory
+    // Load ROM into memory
     unsigned short start = 0x200;
     char* start_addr = &mem[start];
     FILE* rom_file;
@@ -61,14 +61,15 @@ int main(int argc, char** argv) {
     unsigned char stack_ptr = 0;
 
     int cpu_freq = 500; // instructions per second (1 instruction ~ 1 cycle)
-    int refresh_rate = 60; // frames per second
-    int instrs_per_frame = cpu_freq / refresh_rate;
+    int refresh_rate = 30; // frames per second
+    int instr_per_frame = cpu_freq / refresh_rate;
 
     bool running = true;
     while (running) {
 
         SDL_Event event;
         char user_pressed_key = '\0';
+        bool draw_flag = false;
 
         while (SDL_PollEvent(&event)) { // read event queue
             switch (event.type) {
@@ -137,48 +138,57 @@ int main(int argc, char** argv) {
             }
         }
 
-        for (int i = 0; i < instrs_per_frame; i++) { // fetch-decode-execute
+        for (int i = 0; i < instr_per_frame; i++) { // fetch-decode-execute
 
-            // fetch: copy instruction PC is pointing to
+            // Fetch: copy instruction PC is pointing to
             unsigned char msb = mem[PC];
             unsigned char lsb = mem[PC + 1]; // NN
 
-            // extract values for decoding
+            // Extract values for decoding
             unsigned char first_nib = (msb >> 4) & 0xF;
             unsigned char second_nib = msb & 0xF; // X
             unsigned char third_nib = (lsb >> 4) & 0xF; // Y
             unsigned char fourth_nib = lsb & 0xF; // N
             unsigned short lowest_12_bits = ((short)second_nib << 8) | (short)lsb; // NNN
 
-            PC += 2;
+            PC += 2; // next instruction
 
-            // decode and execute
+            // Decode and execute
             switch (first_nib) {
 
                 case (0x0):
-                    // ignore 0NNN instruction
+                    // Ignore 0NNN instruction
+                    // printf("Instruction: Clear\n");
 
                     if (lowest_12_bits == 0x0E0) { // 00E0 - clear screen
+                        draw_flag = true;
                         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // black
                         SDL_RenderClear(renderer);
                         memset(display_arr, 0, sizeof(display_arr));  
                     }
+                    
                     break;
                 case (0x1): // 1NNN - jump
+                    // printf("Instruction: Jump\n");
                     PC = lowest_12_bits;  
                     break; 
                 case (0x6): // 6XNN - set
+                    // printf("Instruction: Set Vx\n");
                     Vx[second_nib] = lsb;   
                     break;
                 case (0x7): // 7XNN - add
+                    // printf("Instruction: Add to Vx\n");
                     Vx[second_nib] += lsb; 
                     break;
                 case (0xA): // ANNN - set I
+                    // printf("Instruction: Set I\n");
                     I = lowest_12_bits; 
                     break;
                 case (0xD): // DXYN - display
+                    // printf("Instruction: Draw\n");
+                    draw_flag = true;
 
-                    // starting position wraps around
+                    // Starting position wraps around
                     unsigned char x = Vx[second_nib] % DISPLAY_WIDTH_PX; 
                     unsigned char y = Vx[third_nib] % DISPLAY_HEIGHT_PX;
 
@@ -216,7 +226,7 @@ int main(int argc, char** argv) {
                                 break;
                         }
 
-                        // reset x for next row
+                        // Reset x for next row
                         x = Vx[second_nib] % DISPLAY_WIDTH_PX; 
 
                         y++;
@@ -228,7 +238,10 @@ int main(int argc, char** argv) {
             }
         }
 
-        SDL_RenderPresent(renderer);
+        if (draw_flag) {
+            SDL_RenderPresent(renderer);
+            draw_flag = false;
+        }
     }
 
 quit:
