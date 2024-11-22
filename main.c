@@ -2,11 +2,16 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#define DISPLAY_WIDTH_PIX 64
+#define DISPLAY_HEIGHT_PIX 32
+
 int main() {
     SDL_Init(SDL_INIT_VIDEO);
 
-    SDL_Window* display = SDL_CreateWindow("Chip-8", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 64 * 16, 32 * 16, 0);
+    SDL_Window* display = SDL_CreateWindow("Chip-8", SDL_WINDOWPOS_CENTERED, 
+        SDL_WINDOWPOS_CENTERED, DISPLAY_WIDTH_PIX * 16, DISPLAY_HEIGHT_PIX * 16, 0);
     SDL_Surface* display_surface = SDL_GetWindowSurface(display);
+    unsigned char display_arr[DISPLAY_HEIGHT_PIX][DISPLAY_WIDTH_PIX] = {0};
     
     // main memory
     unsigned char mem[4096] = {
@@ -32,7 +37,7 @@ int main() {
     //     printf("mem[0x%03x] = 0x%02x\n", i, mem[i]);
 
     unsigned char Vx[16] = {0}; // variable registers: V0 to VF
-    unsigned char I[2] = {0}; // index register
+    unsigned short I = 0x000; // index register
     unsigned char delay_timer = {0};
     unsigned char sound_timer = {0};
     unsigned short PC = 0x200; // program counter
@@ -41,7 +46,6 @@ int main() {
 
     // unsigned char lsb = PC & 0xFF;   
     // unsigned char msb = (PC >> 8) & 0xF;
-
     // printf("program counter = 0x%03x\n", PC);
     // printf("msb = 0x%02x\n", msb);  
     // printf("lsb = 0x%02x\n", lsb);  
@@ -147,33 +151,79 @@ int main() {
             // printf("second byte = 0x%.2x\n", lsb);
             // printf("lowest twelve bits = 0x%03x\n", lowest_12_bits);
 
-            // decode
+            // decode and execute
             // printf("Decode instruction!\n");
-            
+            // printf("Execute instruction!\n");
 
             switch (first_nib) {
 
                 case (0x0):
                     // ignore 0NNN instruction
 
-                    if (lowest_12_bits == 0x0E0) {// CLS - clear screen
+                    if (lowest_12_bits == 0x0E0) { // 00E0 - clear screen
                         SDL_FillRect(display_surface, NULL, 0);
                     }
-                    // else if (ldb == 0xEE) { // RET
+                    // else if (ldb == 0xEE) { // 00EE - return from subroutine 
                     //     PC = stack[stack_ptr];
                     //     stack_ptr -= 1;
                     // }
+                    break;
+                case (0x1): // 1NNN - jump
+                    PC = lowest_12_bits;
+                    break; 
+                case (0x6): // 6XNN - set
+                    Vx[second_nib] = lsb;
+                    break;
+                case (0x7): // 7XNN - add
+                    Vx[second_nib] += lsb;
+                    break;
+                case (0xA): // ANNN - set I
+                    I = lsb;
+                    break;
+                case (0xD): // DXYN - display
 
+                    // starting position wraps around
+                    unsigned char x = Vx[second_nib] % 64; 
+                    unsigned char y = Vx[third_nib] % 32;
+
+                    Vx[0xF] = 0; // turn off collision
+
+                    for (int i = 0; i < fourth_nib; i++) { // read N bytes
+                        
+                        // start from address I
+                        unsigned char byte = mem[I + i]; 
+
+                        for (int j = 0; j < 8; j++) { // read each bit
+
+                            if (x >= DISPLAY_WIDTH_PIX) { // draw next row
+                                x = Vx[second_nib] % 64; 
+                                continue;
+                            }
+
+                            // get bit at position j
+                            unsigned char bit = (byte & (1 << j)) >> j; 
+                            
+                            if (bit == 1) {
+                                if (display_arr[x][y] == 1) { // turn off
+                                    display_arr[x][y] == 0;
+                                    // fill black rect on surface
+                                    Vx[0xF] = 1;
+                                } else { // turn on
+                                    display_arr[x][y] == 1;
+                                    // fill white rect on surface
+                                }
+                            } 
+
+                            x++;
+                        }
+
+                        y++;
+                        if (y >= DISPLAY_HEIGHT_PIX) // stop drawing
+                            break;
+                    }                    
                     break;
 
-                case (0x1):
-                    break; 
-                
-
             }
-
-            // execute
-            // printf("Execute instruction!\n");
         }
 
         // update display
