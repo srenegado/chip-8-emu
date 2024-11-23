@@ -1,6 +1,7 @@
 #include <SDL.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <math.h>
 
 #define DISPLAY_WIDTH_PX 64
 #define DISPLAY_HEIGHT_PX 32
@@ -172,20 +173,21 @@ int main(int argc, char** argv) {
                     // printf("Instruction: Jump\n");
                     PC = lowest_12_bits;  
                     break;
-                case (0x3): // 3XNN - skip conditionally
-                    // printf("Instruction: skip conditionally");
-                    if (Vx[second_nib] == lsb) 
-                        PC += 2;
-                    break;
-                case (0x4): // 4XNN - skip conditionally
-                    // printf("Instruction: skip conditionally");
-                    if (Vx[second_nib] != lsb)
-                        PC += 2;
-                case (0x5): // 5XY0 - skip conditionally
-                    // printf("Instruction: skip conditionally");
-                    if (Vx[second_nib] == Vx[third_nib])
-                        PC += 2;
-                    break;
+                // case (0x3): // 3XNN - skip conditionally
+                //     // printf("Instruction: skip conditionally");
+                //     if (Vx[second_nib] == lsb) 
+                //         PC += 2;
+                //     break;
+                // case (0x4): // 4XNN - skip conditionally
+                //     // printf("Instruction: skip conditionally");
+                //     if (Vx[second_nib] != lsb)
+                //         PC += 2;
+                //     break;
+                // case (0x5): // 5XY0 - skip conditionally
+                //     // printf("Instruction: skip conditionally");
+                //     if (Vx[second_nib] == Vx[third_nib])
+                //         PC += 2;
+                //     break;
                 case (0x6): // 6XNN - set
                     // printf("Instruction: Set Vx\n");
                     Vx[second_nib] = lsb;   
@@ -194,48 +196,59 @@ int main(int argc, char** argv) {
                     // printf("Instruction: Add to Vx\n");
                     Vx[second_nib] += lsb; 
                     break;
-                case (0x8):
-                    switch (fourth_nib) {
-                        case (0x1): // 8XY1 - OR
-                            Vx[second_nib] |= Vx[third_nib]; 
-                            break;
-                        case (0x2): // 8XY2 - AND
-                            Vx[second_nib] &= Vx[third_nib];
-                            break;
-                        case (0x3): // 8XY3 - XOR
-                            Vx[second_nib] ^= Vx[third_nib];
-                            break;
-                        case (0x5): // 8XY5 - subtract
-                            if (Vx[second_nib] > Vx[third_nib]) {
-                                Vx[second_nib] -= Vx[third_nib];
-                                Vx[0xF] = 1;
-                            } else { // underflow
-                                Vx[second_nib] = 0;
-                                Vx[0xF] = 0;
-                            }
-                            break;
-                        case (0x7): // 8XY7 - subtract
-                            if (Vx[third_nib] > Vx[second_nib]) {
-                                Vx[second_nib] = Vx[third_nib] - Vx[second_nib];
-                                Vx[0xF] = 1;
-                            } else { // underflow
-                                Vx[second_nib] = 0;
-                                Vx[0xF] = 0;
-                            }
-                            break;
-                    }
-                    break;
+                // case (0x8):
+                //     switch (fourth_nib) {
+                //         // case (0x1): // 8XY1 - OR
+                //         //     Vx[second_nib] |= Vx[third_nib]; 
+                //         //     break;
+                //         // case (0x2): // 8XY2 - AND
+                //         //     Vx[second_nib] &= Vx[third_nib];
+                //         //     break;
+                //         // case (0x3): // 8XY3 - XOR
+                //         //     Vx[second_nib] ^= Vx[third_nib];
+                //         //     break;
+                //         // case (0x5): // 8XY5 - subtract
+                //         //     if (Vx[second_nib] > Vx[third_nib]) {
+                //         //         Vx[second_nib] -= Vx[third_nib];
+                //         //         Vx[0xF] = 1;
+                //         //     } else { // underflow
+                //         //         Vx[second_nib] = 0;
+                //         //         Vx[0xF] = 0;
+                //         //     }
+                //         //     break;
+                //         // case (0x6): // 8XY6 - shift right
+                //         //     // Vx[second_nib] = Vx[third_nib];
+                //         //     Vx[0xF] = Vx[second_nib] & 0x01;
+                //         //     Vx[second_nib] >>= 1;
+                //         //     break;                        
+                //         // case (0x7): // 8XY7 - subtract
+                //         //     if (Vx[third_nib] > Vx[second_nib]) {
+                //         //         Vx[second_nib] = Vx[third_nib] - Vx[second_nib];
+                //         //         Vx[0xF] = 1;
+                //         //     } else { // underflow
+                //         //         Vx[second_nib] = 0;
+                //         //         Vx[0xF] = 0;
+                //         //     }
+                //         //     break;
+                //         // case (0xE): // 8XYE - shift left
+                //         //     // Vx[second_nib] = Vx[third_nib];
+                //         //     Vx[0xF] = (Vx[second_nib] & 0x80) >> 7;
+                //         //     Vx[second_nib] <<= 1;
+                //         //     break;
+                //     }
+                //     break;
                 case (0xA): // ANNN - set I
                     // printf("Instruction: Set I\n");
                     I = lowest_12_bits; 
                     break;
                 case (0xD): // DXYN - display
-                    // printf("Instruction: Draw\n");
+                    
                     draw_flag = true;
 
                     // Starting position wraps around
                     unsigned char x = Vx[second_nib] % DISPLAY_WIDTH_PX; 
                     unsigned char y = Vx[third_nib] % DISPLAY_HEIGHT_PX;
+                    // printf("Instruction: Draw at (%d, %d)\n", x, y);
 
                     Vx[0xF] = 0; // turn off collision
 
@@ -246,24 +259,12 @@ int main(int argc, char** argv) {
                             unsigned char bit = (byte & (1 << j)) >> j;
 
                             if (bit == 1) {
-                                SDL_Rect r; // create "pixel" to-scale
-                                r.x = x * SCALE;
-                                r.y = y * SCALE;
-                                r.w = SCALE;
-                                r.h = SCALE;
-                                
-                                if (display_arr[y][x] == 1) { // turn off
+                                if (display_arr[y][x] == 1) { // collision
                                     display_arr[y][x] = 0;
-                                    SDL_SetRenderDrawColor(renderer, 
-                                        0, 0, 0, 255); // black
-                                    Vx[0xF] = 1; // turn on collision
-                                } 
-                                else { // turn on
+                                    Vx[0xF] = 1; 
+                                } else { // no collision
                                     display_arr[y][x] = 1;
-                                    SDL_SetRenderDrawColor(renderer, 
-                                        255, 255, 255, 255); // white
                                 }
-                                SDL_RenderFillRect(renderer, &r); 
                             } 
 
                             x++;
@@ -280,6 +281,32 @@ int main(int argc, char** argv) {
                     }    
 
                     break;
+                // case (0xF):
+                //     switch (lsb) {
+                //         // case (0x33): // FX33 - binary-coded decimal
+
+                //         //     // Hundreds place
+                //         //     mem[I] = (unsigned char)
+                //         //         floor(Vx[second_nib] / 100) % 10;
+                            
+                //         //     // Tens place
+                //         //     mem[I + 1] = (unsigned char)
+                //         //         floor(Vx[second_nib] / 10) % 10; 
+                            
+                //         //     // Ones place
+                //         //     mem[I + 2] = Vx[second_nib] % 10;
+
+                //         //     break;
+                //         // case (0x55): // FX55 - store memory
+                //         //     for (int i = 0; i <= second_nib; i++) 
+                //         //         mem[I + i] = Vx[i];
+                //         //     break;
+                //         // case (0x65): // FX65 - load memory
+                //         //     for (int i = 0; i <= second_nib; i++)
+                //         //         Vx[i] = mem[I + i];
+                //         //     break;
+                //     }
+                //     break;
             }
         }
 
@@ -288,10 +315,33 @@ int main(int argc, char** argv) {
          * only call it following a drawing instruction
          * https://wiki.libsdl.org/SDL2/SDL_RenderPresent
          **/ 
-        if (draw_flag) { 
-            SDL_RenderPresent(renderer);
+        if (draw_flag) {
             draw_flag = false;
+
+            // Render each pixel
+            for (int y = 0; y < DISPLAY_HEIGHT_PX; y++) {
+                for (int x = 0; x < DISPLAY_WIDTH_PX; x++) {
+                    SDL_Rect px; // create "pixel" to-scale
+                    px.x = x * SCALE;
+                    px.y = y * SCALE;
+                    px.w = SCALE;
+                    px.h = SCALE;
+                    if (display_arr[y][x] == 0) {
+                        SDL_SetRenderDrawColor(renderer, 
+                            0, 0, 0, 255); // black 
+                    } else { 
+                        SDL_SetRenderDrawColor(renderer, 
+                            255, 255, 255, 255); // white
+                    }
+                    SDL_RenderFillRect(renderer, &px); 
+                }
+            }
+
+            // Update display
+            SDL_RenderPresent(renderer);
         }
+
+        
     }
 
 quit:
