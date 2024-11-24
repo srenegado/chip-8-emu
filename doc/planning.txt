@@ -104,3 +104,7 @@ variables used:
  - x: lower 4 bits of the high byte
  - y: lower 4 bits of the low byte
  - kk or byte: lowest 8 bits
+
+ note:
+ - assume 1 instruction takes 1 clock cycle
+ - "cycles per frame means how many instructions will be run between frame redraws"
