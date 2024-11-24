@@ -1,4 +1,5 @@
 #include <SDL.h>
+#include <SDL_mixer.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -19,7 +20,11 @@ int main(int argc, char** argv) {
         DISPLAY_WIDTH_PX * SCALE, DISPLAY_HEIGHT_PX * SCALE, 0);
     SDL_Renderer* renderer = SDL_CreateRenderer(display, -1, SDL_RENDERER_ACCELERATED);
     unsigned char display_arr[DISPLAY_HEIGHT_PX][DISPLAY_WIDTH_PX] = {0};
-    
+
+    // Load "beep" sound effect for sound timer
+    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048); // stereo, 44100 Hz
+    Mix_Chunk* sound_timer_beep = Mix_LoadWAV("audio/microwave_beep.wav");
+
     // Main memory
     unsigned char mem[4096] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -43,7 +48,7 @@ int main(int argc, char** argv) {
     // Load ROM into memory
     unsigned short start = 0x200;
     char* start_addr = &mem[start];
-    FILE* rom_file;
+    FILE* rom_file = NULL;
     rom_file = fopen(argv[1], "rb");
     fread(start_addr, 4096 - 512, 1, rom_file);
     fclose(rom_file);
@@ -71,10 +76,11 @@ int main(int argc, char** argv) {
     while (running) {
         uint32_t start_ms = SDL_GetTicks();
 
-        SDL_Event event;
         bool draw_flag = false;
 
-        while (SDL_PollEvent(&event)) { // read event queue
+        // Process user key presses
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) { 
             switch (event.type) {
 
                 case SDL_KEYDOWN: // user pressed a key
@@ -481,11 +487,13 @@ wait:
             SDL_Delay(delay_ms);
         } 
         
-        if (delay_timer != 0) 
+        if (delay_timer > 0) 
             delay_timer--;
 
-        if (sound_timer != 0) 
+        if (sound_timer > 0) {
+            Mix_PlayChannel(-1, sound_timer_beep, 0);
             sound_timer--;
+        }
 
     }
 
