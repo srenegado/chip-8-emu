@@ -8,7 +8,7 @@
 #define SCALE 16
 
 int main(int argc, char** argv) {
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO);
 
     SDL_Window* display = SDL_CreateWindow("Chip-8", 
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
@@ -61,15 +61,21 @@ int main(int argc, char** argv) {
     unsigned short stack[16] = {0}; // for storing up to 16 addresses
     unsigned char stack_ptr = 0;
 
-    int cpu_freq = 500; // instructions per second (1 instruction ~ 1 cycle)
-    int refresh_rate = 30; // frames per second
+    int cpu_freq = 1000; // instructions per second (1 instruction ~ 1 cycle)
+    int refresh_rate = 60; // frames per second
+    int frame_ms = 1000 / refresh_rate; // time (ms) per frame
     int instr_per_frame = cpu_freq / refresh_rate;
+
+    unsigned char keyboard[16] = {0}; // index = CHIP-8 key
+
+    bool expecting_release = false; // for FX0A
+    unsigned char expecting_key;
 
     bool running = true;
     while (running) {
+        uint32_t start_ms = SDL_GetTicks();
 
         SDL_Event event;
-        char user_pressed_key = '\0';
         bool draw_flag = false;
 
         while (SDL_PollEvent(&event)) { // read event queue
@@ -79,58 +85,113 @@ int main(int argc, char** argv) {
 
                     switch (event.key.keysym.scancode) { // read key
                         case 30:
-                            user_pressed_key = '1';
+                            keyboard[0x1] = 1;
                             break;
-                        case 31:
-                            user_pressed_key = '2';
+                        case 31: 
+                            keyboard[0x2] = 1;
                             break;
-                        case 32:
-                            user_pressed_key = '3';
+                        case 32: 
+                            keyboard[0x3] = 1;
                             break;
                         case 33:
-                            user_pressed_key = 'C';
+                            keyboard[0xC] = 1;
                             break;
-                        case 20:
-                            user_pressed_key = '4';
+                        case 20: 
+                            keyboard[0x4] = 1;
                             break;
-                        case 26:
-                            user_pressed_key = '5';
+                        case 26: 
+                            keyboard[0x5] = 1;
                             break;
-                        case 8:
-                            user_pressed_key = '6';
+                        case 8: 
+                            keyboard[0x6] = 1;
                             break;
-                        case 21:
-                            user_pressed_key = 'D';
+                        case 21: 
+                            keyboard[0xD] = 1;
                             break;
                         case 4:
-                            user_pressed_key = '7';
+                            keyboard[0x7] = 1;
                             break;
                         case 22:
-                            user_pressed_key = '8';
+                            keyboard[0x8] = 1;
                             break;
-                        case 7:
-                            user_pressed_key = '9';
+                        case 7: 
+                            keyboard[0x9] = 1;
                             break;
                         case 9:
-                            user_pressed_key = 'E';
+                            keyboard[0xE] = 1;
                             break;
-                        case 29:
-                            user_pressed_key = 'A';
+                        case 29: 
+                            keyboard[0xA] = 1;
                             break;
-                        case 27:
-                            user_pressed_key = '0';
+                        case 27: 
+                            keyboard[0x0] = 1;
                             break;
-                        case 6:
-                            user_pressed_key = 'B';
+                        case 6: 
+                            keyboard[0xB] = 1;
                             break;
-                        case 25:
-                            user_pressed_key = 'F';
+                        case 25: 
+                            keyboard[0xF] = 1;
                             break;
                         case 41: // esc
                             goto quit;
                             break;
                     }
-            
+
+                    break;
+
+                case SDL_KEYUP: // user released a key
+
+                    switch (event.key.keysym.scancode) { // read key
+                      case 30:
+                            keyboard[0x1] = 0;
+                            break;
+                        case 31: 
+                            keyboard[0x2] = 0;
+                            break;
+                        case 32: 
+                            keyboard[0x3] = 0;
+                            break;
+                        case 33:
+                            keyboard[0xC] = 0;
+                            break;
+                        case 20: 
+                            keyboard[0x4] = 0;
+                            break;
+                        case 26: 
+                            keyboard[0x5] = 0;
+                            break;
+                        case 8: 
+                            keyboard[0x6] = 0;
+                            break;
+                        case 21: 
+                            keyboard[0xD] = 0;
+                            break;
+                        case 4:
+                            keyboard[0x7] = 0;
+                            break;
+                        case 22:
+                            keyboard[0x8] = 0;
+                            break;
+                        case 7: 
+                            keyboard[0x9] = 0;
+                            break;
+                        case 9:
+                            keyboard[0xE] = 0;
+                            break;
+                        case 29: 
+                            keyboard[0xA] = 0;
+                            break;
+                        case 27: 
+                            keyboard[0x0] = 0;
+                            break;
+                        case 6: 
+                            keyboard[0xB] = 0;
+                            break;
+                        case 25: 
+                            keyboard[0xF] = 0;
+                            break;
+                    }
+
                     break;
                 
                 default:
@@ -158,8 +219,7 @@ int main(int argc, char** argv) {
             switch (first_nib) {
 
                 case (0x0):
-                    // Ignore 0NNN instruction
-                    // printf("Instruction: Clear\n");
+                    // ...ignore 0NNN instruction
 
                     switch (lsb) {
                         case (0xE0): // 00E0 - clear screen
@@ -307,10 +367,60 @@ int main(int argc, char** argv) {
                     }    
 
                     break;
+                case (0xE):
+                    switch (lsb) {
+                        case (0x9E): // 0xEX9E - DOWN
+                            if (keyboard[Vx[second_nib] & 0xF] == 1)
+                                PC += 2;
+                            break;
+                        case (0xA1): // 0xEXA1 - UP
+                            if (keyboard[Vx[second_nib] & 0xF] == 0)
+                                PC += 2;
+                            break;
+                    }
+                    break;
                 case (0xF):
                     switch (lsb) {
+                        case (0x07): // FX07 - set Vx to timer
+                            Vx[second_nib] = delay_timer;
+                            break;
+                        case (0x0A): // FX0A - GETKEY
+                            if (expecting_release) {
+                                if (keyboard[expecting_key] == 0) { // released
+                                    expecting_release = false;
+                                    Vx[second_nib] = i;
+                                    break;
+                                } else { 
+                                    goto wait;
+                                }
+                            }
+
+                            // Check for any key presses
+                            for (int i = 0; i < 16; i++) { 
+                                if (keyboard[i] == 1) {
+                                    expecting_release = true;
+                                    expecting_key = i;
+                                    goto wait;   
+                                }
+                            }
+wait:
+                            PC -= 2;
+                            break;
+                        case (0x15): // FX15 - set delay timer
+                            delay_timer = Vx[second_nib];
+                            break;
+                        case (0x18): // FX18 - set sound timer
+                            sound_timer = Vx[second_nib];
+                            break;
                         case (0x1E): // FX1E - add to I
                             I += Vx[second_nib];
+                            break;
+                        case (0x29): // FX29 - font
+                            unsigned char font_char = Vx[second_nib] & 0xF;
+                            unsigned char offset_FX29 = 0;
+                            while (offset_FX29 < font_char)
+                                offset_FX29 += 5;
+                            I = mem[offset_FX29];
                             break;
                         case (0x33): // FX33 - binary-coded decimal
 
@@ -341,7 +451,7 @@ int main(int argc, char** argv) {
 
         /*
          * Due to how SDL_RenderPresent() is implemented,
-         * only call it following a drawing instruction
+         * have to redraw and render the whole display for each frame.
          * https://wiki.libsdl.org/SDL2/SDL_RenderPresent
          **/ 
         if (draw_flag) {
@@ -370,7 +480,20 @@ int main(int argc, char** argv) {
             SDL_RenderPresent(renderer);
         }
 
+        uint32_t end_ms = SDL_GetTicks();
+        uint32_t time_taken_ms = end_ms - start_ms;
         
+        if (time_taken_ms < frame_ms) {
+            uint32_t delay_ms = frame_ms - time_taken_ms;
+            SDL_Delay(delay_ms);
+        } 
+        
+        if (delay_timer != 0) 
+            delay_timer--;
+
+        if (sound_timer != 0) 
+            sound_timer--;
+
     }
 
 quit:
