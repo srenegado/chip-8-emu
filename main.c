@@ -1,7 +1,9 @@
 #include <SDL.h>
-#include <stdbool.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <math.h>
+#include <time.h>
 
 #define DISPLAY_WIDTH_PX 64
 #define DISPLAY_HEIGHT_PX 32
@@ -9,6 +11,8 @@
 
 int main(int argc, char** argv) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO);
+
+    srand(time(NULL)); // for seeding
 
     SDL_Window* display = SDL_CreateWindow("Chip-8", 
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
@@ -44,15 +48,6 @@ int main(int argc, char** argv) {
     fread(start_addr, 4096 - 512, 1, rom_file);
     fclose(rom_file);
 
-    // printf("0x00: ");
-    // for(int i = 0; i < 4096; i++) {
-    //     if (i % 16 == 0 && i != 0) {
-    //         printf("\n");
-    //         printf("0x%02x: ", i);
-    //     }
-    //     printf("%02x ", mem[i]); // prints a series of bytes
-    // }
-
     unsigned char Vx[16] = {0}; // variable registers: V0 to VF
     unsigned short I = 0x000; // index register
     unsigned char delay_timer = {0};
@@ -71,6 +66,7 @@ int main(int argc, char** argv) {
     bool expecting_release = false; // for FX0A
     unsigned char expecting_key;
 
+    // Main loop
     bool running = true;
     while (running) {
         uint32_t start_ms = SDL_GetTicks();
@@ -200,7 +196,8 @@ int main(int argc, char** argv) {
             }
         }
 
-        for (int i = 0; i < instr_per_frame; i++) { // fetch-decode-execute
+        // Fetch-decode-execute cycle
+        for (int i = 0; i < instr_per_frame; i++) { 
 
             // Fetch: copy instruction PC is pointing to
             unsigned char msb = mem[PC];
@@ -236,7 +233,6 @@ int main(int argc, char** argv) {
                     }                    
                     break;
                 case (0x1): // 1NNN - jump
-                    // printf("Instruction: Jump\n");
                     PC = lowest_12_bits;  
                     break;
                 case (0x2): // 2NNN - call subroutine
@@ -244,26 +240,21 @@ int main(int argc, char** argv) {
                     stack_ptr++;
                     PC = lowest_12_bits;
                 case (0x3): // 3XNN - skip conditionally
-                    // printf("Instruction: skip conditionally");
                     if (Vx[second_nib] == lsb) 
                         PC += 2;
                     break;
                 case (0x4): // 4XNN - skip conditionally
-                    // printf("Instruction: skip conditionally");
                     if (Vx[second_nib] != lsb)
                         PC += 2;
                     break;
                 case (0x5): // 5XY0 - skip conditionally
-                    // printf("Instruction: skip conditionally");
                     if (Vx[second_nib] == Vx[third_nib])
                         PC += 2;
                     break;
                 case (0x6): // 6XNN - set
-                    // printf("Instruction: Set Vx\n");
                     Vx[second_nib] = lsb;   
                     break;
                 case (0x7): // 7XNN - add
-                    // printf("Instruction: Add to Vx\n");
                     Vx[second_nib] += lsb; 
                     break;
                 case (0x8):
@@ -319,13 +310,16 @@ int main(int argc, char** argv) {
                     }
                     break;
                 case (0x9): // 9XY0 - skip conditionally
-                // printf("Instruction: skip conditionally");
                     if (Vx[second_nib] != Vx[third_nib])
                         PC += 2;
                     break;
                 case (0xA): // ANNN - set I
-                    // printf("Instruction: Set I\n");
                     I = lowest_12_bits; 
+                    break;
+                case (0xB): // BNNN - jump with offset
+                    PC = lowest_12_bits + Vx[0x0];
+                case (0xC): // CNNN - random
+                    Vx[second_nib] = (unsigned char)rand() & lsb;
                     break;
                 case (0xD): // DXYN - display
                     
@@ -334,7 +328,6 @@ int main(int argc, char** argv) {
                     // Starting position wraps around
                     unsigned char x = Vx[second_nib] % DISPLAY_WIDTH_PX; 
                     unsigned char y = Vx[third_nib] % DISPLAY_HEIGHT_PX;
-                    // printf("Instruction: Draw at (%d, %d)\n", x, y);
 
                     Vx[0xF] = 0; // turn off collision
 
