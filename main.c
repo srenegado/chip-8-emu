@@ -17,7 +17,7 @@ typedef struct chip8_specs {
     bool running;
     uint8_t instr_per_frame; 
     uint8_t mem[4096];       // Main memory
-    // PC
+    uint16_t PC;             // Program counter
     // draw_flag
     // renderer
     // display_arr
@@ -225,14 +225,14 @@ int main(int argc, char** argv) {
     uint16_t I = 0x000; // index register
     uint8_t delay_timer = {0};
     uint8_t sound_timer = {0};
-    uint16_t PC = 0x200; // program counter
+    chip8.PC = 0x200;
     uint16_t stack[16] = {0}; // for storing up to 16 addresses
     int8_t SP = -1;
 
     int cpu_freq = 500; // instructions per second (1 instruction ~ 1 cycle)
     int refresh_rate = 60; // frames per second
     int frame_ms = 1000 / refresh_rate; // time (ms) per frame
-    int instr_per_frame = cpu_freq / refresh_rate;
+    chip8.instr_per_frame = cpu_freq / refresh_rate;
 
     memset(chip8.keyboard, 0, sizeof(chip8.keyboard)); // index = CHIP-8 key
 
@@ -250,11 +250,11 @@ int main(int argc, char** argv) {
         process_keyboard(&chip8);
 
         // Fetch-decode-execute cycle
-        for (int i = 0; i < instr_per_frame; i++) { 
+        for (int i = 0; i < chip8.instr_per_frame; i++) { 
 
             // Fetch: copy instruction PC is pointing to
-            uint8_t msb = chip8.mem[PC];
-            uint8_t lsb = chip8.mem[PC + 1]; // NN
+            uint8_t msb = chip8.mem[chip8.PC];
+            uint8_t lsb = chip8.mem[chip8.PC + 1]; // NN
 
             // Extract values for decoding
             uint8_t first_nib = (msb >> 4) & 0xF;
@@ -263,7 +263,7 @@ int main(int argc, char** argv) {
             uint8_t fourth_nib = lsb & 0xF; // N
             uint16_t lowest_12_bits = ((short)second_nib << 8) | (short)lsb; // NNN
 
-            PC += 2; // next instruction
+            chip8.PC += 2; // next instruction
 
             // Decode and execute
             switch (first_nib) {
@@ -279,30 +279,30 @@ int main(int argc, char** argv) {
                             memset(display_arr, 0, sizeof(display_arr));  
                             break;
                         case (0xEE): // 00EE - return subroutine
-                            PC = stack[SP];
+                            chip8.PC = stack[SP];
                             SP--;
                             break;
                     }                    
                     break;
                 case (0x1): // 1NNN - jump
-                    PC = lowest_12_bits;  
+                    chip8.PC = lowest_12_bits;  
                     break;
                 case (0x2): // 2NNN - call subroutine
                     SP++;
-                    stack[SP] = PC;
-                    PC = lowest_12_bits;
+                    stack[SP] = chip8.PC;
+                    chip8.PC = lowest_12_bits;
                     break;
                 case (0x3): // 3XNN - skip conditionally
                     if (Vx[second_nib] == lsb) 
-                        PC += 2;
+                        chip8.PC += 2;
                     break;
                 case (0x4): // 4XNN - skip conditionally
                     if (Vx[second_nib] != lsb)
-                        PC += 2;
+                        chip8.PC += 2;
                     break;
                 case (0x5): // 5XY0 - skip conditionally
                     if (Vx[second_nib] == Vx[third_nib])
-                        PC += 2;
+                        chip8.PC += 2;
                     break;
                 case (0x6): // 6XNN - set
                     Vx[second_nib] = lsb;   
@@ -367,13 +367,13 @@ int main(int argc, char** argv) {
                     break;
                 case (0x9): // 9XY0 - skip conditionally
                     if (Vx[second_nib] != Vx[third_nib])
-                        PC += 2;
+                        chip8.PC += 2;
                     break;
                 case (0xA): // ANNN - set I
                     I = lowest_12_bits; 
                     break;
                 case (0xB): // BNNN - jump with offset
-                    PC = lowest_12_bits + Vx[0x0];
+                    chip8.PC = lowest_12_bits + Vx[0x0];
                     break;
                 case (0xC): // CNNN - random
                     Vx[second_nib] = (uint8_t)rand() & lsb;
@@ -421,11 +421,11 @@ int main(int argc, char** argv) {
                     switch (lsb) {
                         case (0x9E): // 0xEX9E - DOWN
                             if (chip8.keyboard[Vx[second_nib] & 0xF] == 1)
-                                PC += 2;
+                                chip8.PC += 2;
                             break;
                         case (0xA1): // 0xEXA1 - UP
                             if (chip8.keyboard[Vx[second_nib] & 0xF] == 0)
-                                PC += 2;
+                                chip8.PC += 2;
                             break;
                     }
                     break;
@@ -455,7 +455,7 @@ int main(int argc, char** argv) {
                             }
                             
                             wait:
-                            PC -= 2;
+                            chip8.PC -= 2;
                             break;
                         case (0x15): // FX15 - set delay timer
                             delay_timer = Vx[second_nib];
