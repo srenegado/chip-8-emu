@@ -11,16 +11,157 @@
 #define DISPLAY_HEIGHT_PX 32
 #define SCALE 16
 
+typedef struct chip8_specs {
+    uint8_t keyboard[16];
+    bool running;
+} chip8_specs;
+
+
+/**
+ * Read and store the key the user has pressed or released 
+ */
+void process_keyboard(chip8_specs* chip8) {
+    SDL_Event event;
+
+    while (SDL_PollEvent(&event)) { 
+        switch (event.type) {
+
+            case SDL_KEYDOWN: // User pressed a key
+
+                switch (event.key.keysym.scancode) { // Read and store key
+                    case SDL_SCANCODE_1:
+                        chip8->keyboard[0x1] = 1;
+                        break;
+                    case SDL_SCANCODE_2: 
+                        chip8->keyboard[0x2] = 1;
+                        break;
+                    case SDL_SCANCODE_3: 
+                        chip8->keyboard[0x3] = 1;
+                        break;
+                    case SDL_SCANCODE_4:
+                        chip8->keyboard[0xC] = 1;
+                        break;
+                    case SDL_SCANCODE_Q: 
+                        chip8->keyboard[0x4] = 1;
+                        break;
+                    case SDL_SCANCODE_W: 
+                        chip8->keyboard[0x5] = 1;
+                        break;
+                    case SDL_SCANCODE_E: 
+                        chip8->keyboard[0x6] = 1;
+                        break;
+                    case SDL_SCANCODE_R: 
+                        chip8->keyboard[0xD] = 1;
+                        break;
+                    case SDL_SCANCODE_A:
+                        chip8->keyboard[0x7] = 1;
+                        break;
+                    case SDL_SCANCODE_S:
+                        chip8->keyboard[0x8] = 1;
+                        break;
+                    case SDL_SCANCODE_D: 
+                        chip8->keyboard[0x9] = 1;
+                        break;
+                    case SDL_SCANCODE_F:
+                        chip8->keyboard[0xE] = 1;
+                        break;
+                    case SDL_SCANCODE_Z: 
+                        chip8->keyboard[0xA] = 1;
+                        break;
+                    case SDL_SCANCODE_X: 
+                        chip8->keyboard[0x0] = 1;
+                        break;
+                    case SDL_SCANCODE_C: 
+                        chip8->keyboard[0xB] = 1;
+                        break;
+                    case SDL_SCANCODE_V: 
+                        chip8->keyboard[0xF] = 1;
+                        break;
+                    case 41: // esc
+                        chip8->running = false;
+                        break;
+                }
+
+                break;
+
+            case SDL_KEYUP: // User released a key
+
+                switch (event.key.keysym.scancode) { // Read and store key
+                    case SDL_SCANCODE_1:
+                        chip8->keyboard[0x1] = 0;
+                        break;
+                    case SDL_SCANCODE_2: 
+                        chip8->keyboard[0x2] = 0;
+                        break;
+                    case SDL_SCANCODE_3: 
+                        chip8->keyboard[0x3] = 0;
+                        break;
+                    case SDL_SCANCODE_4:
+                        chip8->keyboard[0xC] = 0;
+                        break;
+                    case SDL_SCANCODE_Q: 
+                        chip8->keyboard[0x4] = 0;
+                        break;
+                    case SDL_SCANCODE_W: 
+                        chip8->keyboard[0x5] = 0;
+                        break;
+                    case SDL_SCANCODE_E: 
+                        chip8->keyboard[0x6] = 0;
+                        break;
+                    case SDL_SCANCODE_R: 
+                        chip8->keyboard[0xD] = 0;
+                        break;
+                    case SDL_SCANCODE_A:
+                        chip8->keyboard[0x7] = 0;
+                        break;
+                    case SDL_SCANCODE_S:
+                        chip8->keyboard[0x8] = 0;
+                        break;
+                    case SDL_SCANCODE_D: 
+                        chip8->keyboard[0x9] = 0;
+                        break;
+                    case SDL_SCANCODE_F:
+                        chip8->keyboard[0xE] = 0;
+                        break;
+                    case SDL_SCANCODE_Z: 
+                        chip8->keyboard[0xA] = 0;
+                        break;
+                    case SDL_SCANCODE_X: 
+                        chip8->keyboard[0x0] = 0;
+                        break;
+                    case SDL_SCANCODE_C: 
+                        chip8->keyboard[0xB] = 0;
+                        break;
+                    case SDL_SCANCODE_V: 
+                        chip8->keyboard[0xF] = 0;
+                        break;
+                }
+
+                break;
+            
+            default:
+                break;
+                
+        }
+    }
+
+    return;
+}
+
+
 int main(int argc, char** argv) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO);
 
     srand(time(NULL)); // for seeding
+
+    chip8_specs chip8;
 
     SDL_Window* display = SDL_CreateWindow("Chip-8", 
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
         DISPLAY_WIDTH_PX * SCALE, DISPLAY_HEIGHT_PX * SCALE, 0);
     SDL_Renderer* renderer = SDL_CreateRenderer(display, -1, SDL_RENDERER_ACCELERATED);
     uint8_t display_arr[DISPLAY_HEIGHT_PX][DISPLAY_WIDTH_PX] = {0};
+
 
     // Load "beep" sound effect for sound timer
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048); // stereo, 44100 Hz
@@ -67,141 +208,20 @@ int main(int argc, char** argv) {
     int frame_ms = 1000 / refresh_rate; // time (ms) per frame
     int instr_per_frame = cpu_freq / refresh_rate;
 
-    uint8_t keyboard[16] = {0}; // index = CHIP-8 key
+    memset(chip8.keyboard, 0, sizeof(chip8.keyboard)); // index = CHIP-8 key
 
     bool expecting_release = false; // for FX0A
     uint8_t expecting_key;
 
     // Main loop
-    bool running = true;
-    while (running) {
+    chip8.running = true;
+    while (chip8.running) {
         uint32_t start_ms = SDL_GetTicks();
 
         bool draw_flag = false;
 
         // Process user key presses
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) { 
-            switch (event.type) {
-
-                case SDL_KEYDOWN: // user pressed a key
-
-                    switch (event.key.keysym.scancode) { // read key
-                        case SDL_SCANCODE_1:
-                            keyboard[0x1] = 1;
-                            break;
-                        case SDL_SCANCODE_2: 
-                            keyboard[0x2] = 1;
-                            break;
-                        case SDL_SCANCODE_3: 
-                            keyboard[0x3] = 1;
-                            break;
-                        case SDL_SCANCODE_4:
-                            keyboard[0xC] = 1;
-                            break;
-                        case SDL_SCANCODE_Q: 
-                            keyboard[0x4] = 1;
-                            break;
-                        case SDL_SCANCODE_W: 
-                            keyboard[0x5] = 1;
-                            break;
-                        case SDL_SCANCODE_E: 
-                            keyboard[0x6] = 1;
-                            break;
-                        case SDL_SCANCODE_R: 
-                            keyboard[0xD] = 1;
-                            break;
-                        case SDL_SCANCODE_A:
-                            keyboard[0x7] = 1;
-                            break;
-                        case SDL_SCANCODE_S:
-                            keyboard[0x8] = 1;
-                            break;
-                        case SDL_SCANCODE_D: 
-                            keyboard[0x9] = 1;
-                            break;
-                        case SDL_SCANCODE_F:
-                            keyboard[0xE] = 1;
-                            break;
-                        case SDL_SCANCODE_Z: 
-                            keyboard[0xA] = 1;
-                            break;
-                        case SDL_SCANCODE_X: 
-                            keyboard[0x0] = 1;
-                            break;
-                        case SDL_SCANCODE_C: 
-                            keyboard[0xB] = 1;
-                            break;
-                        case SDL_SCANCODE_V: 
-                            keyboard[0xF] = 1;
-                            break;
-                        case 41: // esc
-                            goto quit;
-                            break;
-                    }
-
-                    break;
-
-                case SDL_KEYUP: // user released a key
-
-                    switch (event.key.keysym.scancode) { // read key
-                        case SDL_SCANCODE_1:
-                            keyboard[0x1] = 0;
-                            break;
-                        case SDL_SCANCODE_2: 
-                            keyboard[0x2] = 0;
-                            break;
-                        case SDL_SCANCODE_3: 
-                            keyboard[0x3] = 0;
-                            break;
-                        case SDL_SCANCODE_4:
-                            keyboard[0xC] = 0;
-                            break;
-                        case SDL_SCANCODE_Q: 
-                            keyboard[0x4] = 0;
-                            break;
-                        case SDL_SCANCODE_W: 
-                            keyboard[0x5] = 0;
-                            break;
-                        case SDL_SCANCODE_E: 
-                            keyboard[0x6] = 0;
-                            break;
-                        case SDL_SCANCODE_R: 
-                            keyboard[0xD] = 0;
-                            break;
-                        case SDL_SCANCODE_A:
-                            keyboard[0x7] = 0;
-                            break;
-                        case SDL_SCANCODE_S:
-                            keyboard[0x8] = 0;
-                            break;
-                        case SDL_SCANCODE_D: 
-                            keyboard[0x9] = 0;
-                            break;
-                        case SDL_SCANCODE_F:
-                            keyboard[0xE] = 0;
-                            break;
-                        case SDL_SCANCODE_Z: 
-                            keyboard[0xA] = 0;
-                            break;
-                        case SDL_SCANCODE_X: 
-                            keyboard[0x0] = 0;
-                            break;
-                        case SDL_SCANCODE_C: 
-                            keyboard[0xB] = 0;
-                            break;
-                        case SDL_SCANCODE_V: 
-                            keyboard[0xF] = 0;
-                            break;
-                    }
-
-                    break;
-                
-                default:
-                    break;
-                    
-            }
-        }
+        process_keyboard(&chip8);
 
         // Fetch-decode-execute cycle
         for (int i = 0; i < instr_per_frame; i++) { 
@@ -374,11 +394,11 @@ int main(int argc, char** argv) {
                 case (0xE):
                     switch (lsb) {
                         case (0x9E): // 0xEX9E - DOWN
-                            if (keyboard[Vx[second_nib] & 0xF] == 1)
+                            if (chip8.keyboard[Vx[second_nib] & 0xF] == 1)
                                 PC += 2;
                             break;
                         case (0xA1): // 0xEXA1 - UP
-                            if (keyboard[Vx[second_nib] & 0xF] == 0)
+                            if (chip8.keyboard[Vx[second_nib] & 0xF] == 0)
                                 PC += 2;
                             break;
                     }
@@ -390,7 +410,7 @@ int main(int argc, char** argv) {
                             break;
                         case (0x0A): // FX0A - GETKEY
                             if (expecting_release) {
-                                if (keyboard[expecting_key] == 0) { // released
+                                if (chip8.keyboard[expecting_key] == 0) { // released
                                     expecting_release = false;
                                     Vx[second_nib] = i;
                                     break;
@@ -401,7 +421,7 @@ int main(int argc, char** argv) {
 
                             // Check for any key presses
                             for (int i = 0; i < 16; i++) { 
-                                if (keyboard[i] == 1) {
+                                if (chip8.keyboard[i] == 1) {
                                     expecting_release = true;
                                     expecting_key = i;
                                     goto wait;   
@@ -504,7 +524,6 @@ int main(int argc, char** argv) {
 
     }
 
-    quit:
     SDL_Quit();
     return 0;
 }
