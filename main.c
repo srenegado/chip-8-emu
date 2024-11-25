@@ -19,14 +19,14 @@ int main(int argc, char** argv) {
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
         DISPLAY_WIDTH_PX * SCALE, DISPLAY_HEIGHT_PX * SCALE, 0);
     SDL_Renderer* renderer = SDL_CreateRenderer(display, -1, SDL_RENDERER_ACCELERATED);
-    unsigned char display_arr[DISPLAY_HEIGHT_PX][DISPLAY_WIDTH_PX] = {0};
+    uint8_t display_arr[DISPLAY_HEIGHT_PX][DISPLAY_WIDTH_PX] = {0};
 
     // Load "beep" sound effect for sound timer
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048); // stereo, 44100 Hz
     Mix_Chunk* sound_timer_beep = Mix_LoadWAV("audio/microwave_beep.wav");
 
     // Main memory
-    unsigned char mem[4096] = {
+    uint8_t mem[4096] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -46,30 +46,30 @@ int main(int argc, char** argv) {
     }; // store font in first 512 bytes
 
     // Load ROM into memory
-    unsigned short start = 0x200;
-    char* start_addr = &mem[start];
+    uint16_t start = 0x200;
+    uint8_t* start_addr = &mem[start];
     FILE* rom_file = NULL;
     rom_file = fopen(argv[1], "rb");
     fread(start_addr, 4096 - 512, 1, rom_file);
     fclose(rom_file);
 
-    unsigned char Vx[16] = {0}; // variable registers: V0 to VF
-    unsigned short I = 0x000; // index register
-    unsigned char delay_timer = {0};
-    unsigned char sound_timer = {0};
-    unsigned short PC = 0x200; // program counter
-    unsigned short stack[16] = {0}; // for storing up to 16 addresses
-    char SP = -1;
+    uint8_t Vx[16] = {0}; // variable registers: V0 to VF
+    uint16_t I = 0x000; // index register
+    uint8_t delay_timer = {0};
+    uint8_t sound_timer = {0};
+    uint16_t PC = 0x200; // program counter
+    uint16_t stack[16] = {0}; // for storing up to 16 addresses
+    int8_t SP = -1;
 
     int cpu_freq = 500; // instructions per second (1 instruction ~ 1 cycle)
     int refresh_rate = 60; // frames per second
     int frame_ms = 1000 / refresh_rate; // time (ms) per frame
     int instr_per_frame = cpu_freq / refresh_rate;
 
-    unsigned char keyboard[16] = {0}; // index = CHIP-8 key
+    uint8_t keyboard[16] = {0}; // index = CHIP-8 key
 
     bool expecting_release = false; // for FX0A
-    unsigned char expecting_key;
+    uint8_t expecting_key;
 
     // Main loop
     bool running = true;
@@ -206,15 +206,15 @@ int main(int argc, char** argv) {
         for (int i = 0; i < instr_per_frame; i++) { 
 
             // Fetch: copy instruction PC is pointing to
-            unsigned char msb = mem[PC];
-            unsigned char lsb = mem[PC + 1]; // NN
+            uint8_t msb = mem[PC];
+            uint8_t lsb = mem[PC + 1]; // NN
 
             // Extract values for decoding
-            unsigned char first_nib = (msb >> 4) & 0xF;
-            unsigned char second_nib = msb & 0xF; // X
-            unsigned char third_nib = (lsb >> 4) & 0xF; // Y
-            unsigned char fourth_nib = lsb & 0xF; // N
-            unsigned short lowest_12_bits = ((short)second_nib << 8) | (short)lsb; // NNN
+            uint8_t first_nib = (msb >> 4) & 0xF;
+            uint8_t second_nib = msb & 0xF; // X
+            uint8_t third_nib = (lsb >> 4) & 0xF; // Y
+            uint8_t fourth_nib = lsb & 0xF; // N
+            uint16_t lowest_12_bits = ((short)second_nib << 8) | (short)lsb; // NNN
 
             PC += 2; // next instruction
 
@@ -281,8 +281,8 @@ int main(int argc, char** argv) {
                             // Vx[0xF] = 0; // COSMAC VIP feature
                             break;
                         case (0x4): // 8XY4 - ADD
-                            unsigned short sum = Vx[second_nib] + Vx[third_nib];
-                            Vx[second_nib] = (unsigned char) sum;
+                            uint16_t sum = Vx[second_nib] + Vx[third_nib];
+                            Vx[second_nib] = (uint8_t) sum;
                             if (sum > 255)
                                 Vx[0xF] = 1;
                             else 
@@ -298,7 +298,7 @@ int main(int argc, char** argv) {
                             break;
                         case (0x6): // 8XY6 - shift right
                             // Vx[second_nib] = Vx[third_nib]; // COSMAC VIP feature
-                            unsigned char bit_8XY6 = Vx[second_nib] & 0x01;
+                            uint8_t bit_8XY6 = Vx[second_nib] & 0x01;
                             Vx[second_nib] >>= 1;
                             Vx[0xF] = bit_8XY6;
                             break;                        
@@ -312,7 +312,7 @@ int main(int argc, char** argv) {
                             break;
                         case (0xE): // 8XYE - shift left
                             // Vx[second_nib] = Vx[third_nib]; // COSMAC VIP feature
-                            unsigned char bit_8XYE = (Vx[second_nib] & 0x80) >> 7;
+                            uint8_t bit_8XYE = (Vx[second_nib] & 0x80) >> 7;
                             Vx[second_nib] <<= 1;
                             Vx[0xF] = bit_8XYE;
                             break;
@@ -329,23 +329,23 @@ int main(int argc, char** argv) {
                     PC = lowest_12_bits + Vx[0x0];
                     break;
                 case (0xC): // CNNN - random
-                    Vx[second_nib] = (unsigned char)rand() & lsb;
+                    Vx[second_nib] = (uint8_t)rand() & lsb;
                     break;
                 case (0xD): // DXYN - display
                     
                     draw_flag = true;
 
                     // Starting position wraps around
-                    unsigned char x = Vx[second_nib] % DISPLAY_WIDTH_PX; 
-                    unsigned char y = Vx[third_nib] % DISPLAY_HEIGHT_PX;
+                    uint8_t x = Vx[second_nib] % DISPLAY_WIDTH_PX; 
+                    uint8_t y = Vx[third_nib] % DISPLAY_HEIGHT_PX;
 
                     Vx[0xF] = 0; // turn off collision
 
                     for (int i = 0; i < fourth_nib; i++) { // read N bytes    
-                        unsigned char byte = mem[I + i]; // start from I
+                        uint8_t byte = mem[I + i]; // start from I
 
                         for (int j = 7; j >= 0; j--) { // read each bit
-                            unsigned char bit = (byte & (1 << j)) >> j;
+                            uint8_t bit = (byte & (1 << j)) >> j;
 
                             if (bit == 1) {
                                 if (display_arr[y][x] == 1) { // collision
@@ -425,11 +425,11 @@ int main(int argc, char** argv) {
                         case (0x33): // FX33 - binary-coded decimal
 
                             // Hundreds place
-                            mem[I] = (unsigned char)
+                            mem[I] = (uint8_t)
                                 floor(Vx[second_nib] / 100) % 10;
                             
                             // Tens place
-                            mem[I + 1] = (unsigned char)
+                            mem[I + 1] = (uint8_t)
                                 floor(Vx[second_nib] / 10) % 10; 
                             
                             // Ones place
