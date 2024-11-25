@@ -12,41 +12,41 @@
 #define SCALE 16
 
 
-typedef struct display_specs {
+typedef struct Display {
     SDL_Window* window;
     SDL_Renderer* renderer;
     uint8_t bits[DISPLAY_HEIGHT_PX][DISPLAY_WIDTH_PX];
     bool draw_flag;
-} display_specs;
+} Display;
 
 
-typedef struct keyboard_specs {
+typedef struct Keyboard {
     uint8_t pressed[16];
     uint8_t expecting_key;
     bool expecting_release;
-} keyboard_specs;
+} Keyboard;
 
 
-typedef struct chip8_specs {
-    keyboard_specs keyboard;
-    bool running;
-    uint8_t instr_per_frame; 
+typedef struct Chip8 {
     uint8_t mem[4096];       // Main memory
-    uint16_t PC;             // Program counter
-    display_specs display;   
-    uint16_t stack[16];      // Stack: stores up to 16 addresses
-    int8_t SP;               // Stack pointer
     uint8_t Vx[16];          // General registers: V0 to VF
     uint16_t I;              // Index register I stores an address
     uint8_t delay_timer;     
     uint8_t sound_timer;
-} chip8_specs;
+    uint16_t PC;             // Program counter
+    uint16_t stack[16];      // Stack: stores up to 16 addresses
+    int8_t SP;               // Stack pointer
+    Keyboard keyboard;
+    Display display;
+    uint8_t instr_per_frame;
+    bool running; 
+} Chip8;
 
 
 /**
  * Read and store the key the user has pressed or released 
  */
-void process_keyboard(chip8_specs* chip8) {
+void process_keyboard(Chip8* chip8) {
     SDL_Event event;
 
     while (SDL_PollEvent(&event)) { 
@@ -174,21 +174,23 @@ void process_keyboard(chip8_specs* chip8) {
     return;
 }
 
-
-void fetch_decode_execute(chip8_specs* chip8) {
+/**
+ * Emulate a CPU instruction cycle
+ */
+void fetch_decode_execute(Chip8* chip8) {
     
     // Fetch: copy instruction PC is pointing to
     uint8_t msb = chip8->mem[chip8->PC];
-    uint8_t lsb = chip8->mem[chip8->PC + 1]; // NN
+    uint8_t lsb = chip8->mem[chip8->PC + 1];                         // NN
 
     // Extract values for decoding
     uint8_t first_nib = (msb >> 4) & 0xF;
-    uint8_t second_nib = msb & 0xF; // X
-    uint8_t third_nib = (lsb >> 4) & 0xF; // Y
-    uint8_t fourth_nib = lsb & 0xF; // N
+    uint8_t second_nib = msb & 0xF;                                  // X
+    uint8_t third_nib = (lsb >> 4) & 0xF;                            // Y
+    uint8_t fourth_nib = lsb & 0xF;                                  // N
     uint16_t lowest_12_bits = ((short)second_nib << 8) | (short)lsb; // NNN
 
-    chip8->PC += 2; // next instruction
+    chip8->PC += 2; // Go to next instruction
 
     // Decode and execute
     switch (first_nib) {
@@ -197,62 +199,62 @@ void fetch_decode_execute(chip8_specs* chip8) {
             // ...ignore 0NNN instruction
 
             switch (lsb) {
-                case (0xE0): // 00E0 - clear screen
+                case (0xE0): // 00E0 - Clear screen
                     chip8->display.draw_flag = true;
                     SDL_SetRenderDrawColor(chip8->display.renderer, 0, 0, 0, 255); // black
                     SDL_RenderClear(chip8->display.renderer);
                     memset(chip8->display.bits, 0, sizeof(chip8->display.bits));  
                     break;
-                case (0xEE): // 00EE - return subroutine
+                case (0xEE): // 00EE - Eeturn from subroutine
                     chip8->PC = chip8->stack[chip8->SP];
                     chip8->SP--;
                     break;
             }                    
             break;
-        case (0x1): // 1NNN - jump
+        case (0x1): // 1NNN - Jump to NNN
             chip8->PC = lowest_12_bits;  
             break;
-        case (0x2): // 2NNN - call subroutine
+        case (0x2): // 2NNN - Call subroutine
             chip8->SP++;
             chip8->stack[chip8->SP] = chip8->PC;
             chip8->PC = lowest_12_bits;
             break;
-        case (0x3): // 3XNN - skip conditionally
+        case (0x3): // 3XNN - Skip if VX == NN
             if (chip8->Vx[second_nib] == lsb) 
                 chip8->PC += 2;
             break;
-        case (0x4): // 4XNN - skip conditionally
+        case (0x4): // 4XNN - Skip if VX != NN
             if (chip8->Vx[second_nib] != lsb)
                 chip8->PC += 2;
             break;
-        case (0x5): // 5XY0 - skip conditionally
+        case (0x5): // 5XY0 - Skip if VX == VY
             if (chip8->Vx[second_nib] == chip8->Vx[third_nib])
                 chip8->PC += 2;
             break;
-        case (0x6): // 6XNN - set
+        case (0x6): // 6XNN - Set VX = NN
             chip8->Vx[second_nib] = lsb;   
             break;
-        case (0x7): // 7XNN - add
+        case (0x7): // 7XNN - Add VX += NN
             chip8->Vx[second_nib] += lsb; 
             break;
         case (0x8):
             switch (fourth_nib) {
-                case (0x0): // 8XY0 - set
+                case (0x0): // 8XY0 - Set VX = VY
                     chip8->Vx[second_nib] = chip8->Vx[third_nib];
                     break;
-                case (0x1): // 8XY1 - OR
+                case (0x1): // 8XY1 - OR VX |= VY
                     chip8->Vx[second_nib] |= chip8->Vx[third_nib];
                     // chip8->Vx[0xF] = 0; // COSMAC VIP feature 
                     break;
-                case (0x2): // 8XY2 - AND
+                case (0x2): // 8XY2 - AND VX &= VY
                     chip8->Vx[second_nib] &= chip8->Vx[third_nib];
                     // chip8->Vx[0xF] = 0; // COSMAC VIP feature
                     break;
-                case (0x3): // 8XY3 - XOR
+                case (0x3): // 8XY3 - XOR VX ^= VY
                     chip8->Vx[second_nib] ^= chip8->Vx[third_nib];
                     // chip8->Vx[0xF] = 0; // COSMAC VIP feature
                     break;
-                case (0x4): // 8XY4 - ADD
+                case (0x4): // 8XY4 - ADD VX += VY
                     uint16_t sum = chip8->Vx[second_nib] + chip8->Vx[third_nib];
                     chip8->Vx[second_nib] = (uint8_t) sum;
                     if (sum > 255)
@@ -260,7 +262,7 @@ void fetch_decode_execute(chip8_specs* chip8) {
                     else 
                         chip8->Vx[0xF] = 0;
                     break;
-                case (0x5): // 8XY5 - SUBTRACT
+                case (0x5): // 8XY5 - SUBTRACT VX -= VY
                     bool underflow_8XY5 = chip8->Vx[third_nib] > chip8->Vx[second_nib];
                     chip8->Vx[second_nib] -= chip8->Vx[third_nib];
                     if (underflow_8XY5) 
@@ -268,13 +270,13 @@ void fetch_decode_execute(chip8_specs* chip8) {
                     else  
                         chip8->Vx[0xF] = 1;
                     break;
-                case (0x6): // 8XY6 - shift right
+                case (0x6): // 8XY6 - Shift right VX
                     // chip8->Vx[second_nib] = chip8->Vx[third_nib]; // COSMAC VIP feature
                     uint8_t bit_8XY6 = chip8->Vx[second_nib] & 0x01;
                     chip8->Vx[second_nib] >>= 1;
                     chip8->Vx[0xF] = bit_8XY6;
                     break;                        
-                case (0x7): // 8XY7 - SUBTRACT
+                case (0x7): // 8XY7 - SUBTRACT VX = VY - VX
                     bool underflow_8XY7 = chip8->Vx[second_nib] > chip8->Vx[third_nib];
                     chip8->Vx[second_nib] = chip8->Vx[third_nib] - chip8->Vx[second_nib];
                     if (underflow_8XY7) 
@@ -282,7 +284,7 @@ void fetch_decode_execute(chip8_specs* chip8) {
                     else  
                         chip8->Vx[0xF] = 1;
                     break;
-                case (0xE): // 8XYE - shift left
+                case (0xE): // 8XYE - Shift left VX
                     // chip8->Vx[second_nib] = chip8->Vx[third_nib]; // COSMAC VIP feature
                     uint8_t bit_8XYE = (chip8->Vx[second_nib] & 0x80) >> 7;
                     chip8->Vx[second_nib] <<= 1;
@@ -290,20 +292,20 @@ void fetch_decode_execute(chip8_specs* chip8) {
                     break;
             }
             break;
-        case (0x9): // 9XY0 - skip conditionally
+        case (0x9): // 9XY0 - Skip if VX != VY
             if (chip8->Vx[second_nib] != chip8->Vx[third_nib])
                 chip8->PC += 2;
             break;
-        case (0xA): // ANNN - set I
+        case (0xA): // ANNN - Set I = NNN
             chip8->I = lowest_12_bits; 
             break;
-        case (0xB): // BNNN - jump with offset
+        case (0xB): // BNNN - Jump to (NNN + V0)
             chip8->PC = lowest_12_bits + chip8->Vx[0x0];
             break;
-        case (0xC): // CNNN - random
+        case (0xC): // CNNN - Set VX = random_number & NN
             chip8->Vx[second_nib] = (uint8_t)rand() & lsb;
             break;
-        case (0xD): // DXYN - display
+        case (0xD): // DXYN - Draw onto the display
             
             chip8->display.draw_flag = true;
 
@@ -311,25 +313,28 @@ void fetch_decode_execute(chip8_specs* chip8) {
             uint8_t x = chip8->Vx[second_nib] % DISPLAY_WIDTH_PX; 
             uint8_t y = chip8->Vx[third_nib] % DISPLAY_HEIGHT_PX;
 
-            chip8->Vx[0xF] = 0; // turn off collision
+            chip8->Vx[0xF] = 0; // Turn off collision
 
-            for (int i = 0; i < fourth_nib; i++) { // read N bytes    
-                uint8_t byte = chip8->mem[chip8->I + i]; // start from I
+            // Read N bytes starting at address I
+            for (int i = 0; i < fourth_nib; i++) {    
+                uint8_t byte = chip8->mem[chip8->I + i];
 
-                for (int j = 7; j >= 0; j--) { // read each bit
+                // Read each bit in each byte from right-to-left
+                for (int j = 7; j >= 0; j--) { 
                     uint8_t bit = (byte & (1 << j)) >> j;
 
+                    // XOR bits onto the screen
                     if (bit == 1) {
-                        if (chip8->display.bits[y][x] == 1) { // collision
+                        if (chip8->display.bits[y][x] == 1) { 
                             chip8->display.bits[y][x] = 0;
                             chip8->Vx[0xF] = 1; 
-                        } else { // no collision
+                        } else { 
                             chip8->display.bits[y][x] = 1;
                         }
                     } 
 
                     x++;
-                    if (x >= DISPLAY_WIDTH_PX) // stop
+                    if (x >= DISPLAY_WIDTH_PX) // STOP
                         break;
                 }
 
@@ -337,18 +342,18 @@ void fetch_decode_execute(chip8_specs* chip8) {
                 x = chip8->Vx[second_nib] % DISPLAY_WIDTH_PX; 
 
                 y++;
-                if (y >= DISPLAY_HEIGHT_PX) // stop
+                if (y >= DISPLAY_HEIGHT_PX) // STOP
                     break;
             }    
 
             break;
         case (0xE):
             switch (lsb) {
-                case (0x9E): // 0xEX9E - DOWN
+                case (0x9E): // 0xEX9E - Skip if key in VX is pressed
                     if (chip8->keyboard.pressed[chip8->Vx[second_nib] & 0xF] == 1)
                         chip8->PC += 2;
                     break;
-                case (0xA1): // 0xEXA1 - UP
+                case (0xA1): // 0xEXA1 - Skip if key in VX is released
                     if (chip8->keyboard.pressed[chip8->Vx[second_nib] & 0xF] == 0)
                         chip8->PC += 2;
                     break;
@@ -356,12 +361,12 @@ void fetch_decode_execute(chip8_specs* chip8) {
             break;
         case (0xF):
             switch (lsb) {
-                case (0x07): // FX07 - set Vx to timer
+                case (0x07): // FX07 - Set Vx to timer
                     chip8->Vx[second_nib] = chip8->delay_timer;
                     break;
-                case (0x0A): // FX0A - GETKEY
+                case (0x0A): // FX0A - Wait for key input
                     if (chip8->keyboard.expecting_release) {
-                        if (chip8->keyboard.pressed[chip8->keyboard.expecting_key] == 0) { // released
+                        if (chip8->keyboard.pressed[chip8->keyboard.expecting_key] == 0) {
                             chip8->keyboard.expecting_release = false;
                             chip8->Vx[second_nib] = chip8->keyboard.expecting_key;
                             break;
@@ -382,19 +387,19 @@ void fetch_decode_execute(chip8_specs* chip8) {
                     wait:
                     chip8->PC -= 2;
                     break;
-                case (0x15): // FX15 - set delay timer
+                case (0x15): // FX15 - Set delay timer
                     chip8->delay_timer = chip8->Vx[second_nib];
                     break;
-                case (0x18): // FX18 - set sound timer
+                case (0x18): // FX18 - Set sound timer
                     chip8->sound_timer = chip8->Vx[second_nib];
                     break;
-                case (0x1E): // FX1E - add to I
+                case (0x1E): // FX1E - Add to I
                     chip8->I += chip8->Vx[second_nib];
                     break;
-                case (0x29): // FX29 - font
+                case (0x29): // FX29 - Set I to font in VX
                     chip8->I =  chip8->Vx[second_nib] * 5;
                     break;
-                case (0x33): // FX33 - binary-coded decimal
+                case (0x33): // FX33 - Store VX as a binary-coded decimal
 
                     // Hundreds place
                     chip8->mem[chip8->I] = (uint8_t)
@@ -408,13 +413,13 @@ void fetch_decode_execute(chip8_specs* chip8) {
                     chip8->mem[chip8->I + 2] = chip8->Vx[second_nib] % 10;
 
                     break;
-                case (0x55): // FX55 - store memory
+                case (0x55): // FX55 - Store memory starting from I
                     for (int i = 0; i <= second_nib; i++) 
                         chip8->mem[chip8->I + i] = chip8->Vx[i];
                     // I += second_nib + 1; // COSMAC VIP feature
                     // I += second_nib; // Chip-48 feature
                     break;
-                case (0x65): // FX65 - load memory
+                case (0x65): // FX65 - Load memory starting from I
                     for (int i = 0; i <= second_nib; i++)
                         chip8->Vx[i] = chip8->mem[chip8->I + i];
                     // I += second_nib + 1; // COSMAC VIP feature
@@ -431,23 +436,18 @@ void fetch_decode_execute(chip8_specs* chip8) {
 int main(int argc, char** argv) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO);
 
-    srand(time(NULL)); // for seeding
+    Chip8 chip8;
 
-    chip8_specs chip8;
-
+    // Initialize display
     chip8.display.window = SDL_CreateWindow("Chip-8", 
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
         DISPLAY_WIDTH_PX * SCALE, DISPLAY_HEIGHT_PX * SCALE, 0);
     chip8.display.renderer = SDL_CreateRenderer(chip8.display.window, -1, SDL_RENDERER_ACCELERATED);
     memset(chip8.display.bits, 0, sizeof(chip8.display.bits));
 
-    // Load "beep" sound effect for sound timer
-    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048); // stereo, 44100 Hz
-    Mix_Chunk* sound_timer_beep = Mix_LoadWAV("audio/microwave_beep.wav");
-
-    // Store font in first 512 bytes of memory
+    // Initialize memory 
     memset(chip8.mem, 0, sizeof(chip8.mem));
-    uint8_t font[80] = {
+    uint8_t font[80] = { // Store font in fire 512 bytes in memory
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -475,6 +475,7 @@ int main(int argc, char** argv) {
     fread(start_addr, 4096 - 512, 1, rom_file);
     fclose(rom_file);
 
+    // Initialize registers
     memset(chip8.Vx, 0, sizeof(chip8.Vx));
     chip8.I = 0x000; 
     chip8.delay_timer = 0;
@@ -483,32 +484,40 @@ int main(int argc, char** argv) {
     memset(chip8.stack, 0, sizeof(chip8.stack));
     chip8.SP = -1;
 
-    int cpu_freq = 500; // instructions per second (1 instruction ~ 1 cycle)
-    int refresh_rate = 60; // frames per second
-    int frame_ms = 1000 / refresh_rate; // time (ms) per frame
+    // Calculate instructions per frame 
+    int cpu_freq = 500;                               // instructions per second
+    int refresh_rate = 60;                            // frames per second (FPS)
+    int frame_ms = 1000 / refresh_rate;               // time (in ms) per frame
     chip8.instr_per_frame = cpu_freq / refresh_rate;
 
+    // Initialize keyboard
     memset(chip8.keyboard.pressed, 0, sizeof(chip8.keyboard.pressed));
-
     chip8.keyboard.expecting_release = false;
+
+    // Load "beep" sound effect for sound timer
+    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048); // stereo, 44100 Hz
+    Mix_Chunk* sound_timer_beep = Mix_LoadWAV("audio/microwave_beep.wav");
+
+    srand(time(NULL));
 
     // Main loop
     chip8.running = true;
     while (chip8.running) {
-        uint32_t start_ms = SDL_GetTicks();
+        uint32_t start_ms = SDL_GetTicks(); // Time each frame
 
         chip8.display.draw_flag = false;
 
         // Process user key presses
         process_keyboard(&chip8);
 
-        // Fetch-decode-execute cycle
+        // Each frame should do a fixed number of instructions 
         for (int i = 0; i < chip8.instr_per_frame; i++)  
             fetch_decode_execute(&chip8);
         
         uint32_t end_ms = SDL_GetTicks();
         uint32_t time_taken_ms = end_ms - start_ms;
         
+        // Each frame should take a fixed number of seconds
         if (time_taken_ms < frame_ms) {
             uint32_t delay_ms = frame_ms - time_taken_ms;
             SDL_Delay(delay_ms);
@@ -525,17 +534,20 @@ int main(int argc, char** argv) {
             // Render each pixel
             for (int y = 0; y < DISPLAY_HEIGHT_PX; y++) {
                 for (int x = 0; x < DISPLAY_WIDTH_PX; x++) {
-                    SDL_Rect px; // create "pixel" to-scale
+
+                    // Create pixel to-scale
+                    SDL_Rect px; 
                     px.x = x * SCALE;
                     px.y = y * SCALE;
                     px.w = SCALE;
                     px.h = SCALE;
+                    
                     if (chip8.display.bits[y][x] == 0) {
                         SDL_SetRenderDrawColor(chip8.display.renderer, 
-                            0, 0, 0, 255); // black 
+                            0, 0, 0, 255); // Black
                     } else { 
                         SDL_SetRenderDrawColor(chip8.display.renderer, 
-                            255, 255, 255, 255); // white
+                            255, 255, 255, 255); // White
                     }
                     SDL_RenderFillRect(chip8.display.renderer, &px); 
                 }
