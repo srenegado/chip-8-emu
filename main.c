@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
     unsigned short stack[16] = {0}; // for storing up to 16 addresses
     unsigned char stack_ptr = 0;
 
-    int cpu_freq = 1000; // instructions per second (1 instruction ~ 1 cycle)
+    int cpu_freq = 500; // instructions per second (1 instruction ~ 1 cycle)
     int refresh_rate = 60; // frames per second
     int frame_ms = 1000 / refresh_rate; // time (ms) per frame
     int instr_per_frame = cpu_freq / refresh_rate;
@@ -269,13 +269,16 @@ int main(int argc, char** argv) {
                             Vx[second_nib] = Vx[third_nib];
                             break;
                         case (0x1): // 8XY1 - OR
-                            Vx[second_nib] |= Vx[third_nib]; 
+                            Vx[second_nib] |= Vx[third_nib];
+                            // Vx[0xF] = 0; // COSMAC feature 
                             break;
                         case (0x2): // 8XY2 - AND
                             Vx[second_nib] &= Vx[third_nib];
+                            // Vx[0xF] = 0; // COSMAC feature
                             break;
                         case (0x3): // 8XY3 - XOR
                             Vx[second_nib] ^= Vx[third_nib];
+                            // Vx[0xF] = 0; // COSMAC feature
                             break;
                         case (0x4): // 8XY4 - ADD
                             unsigned short sum = Vx[second_nib] + Vx[third_nib];
@@ -294,7 +297,7 @@ int main(int argc, char** argv) {
                                 Vx[0xF] = 1;
                             break;
                         case (0x6): // 8XY6 - shift right
-                            // Vx[second_nib] = Vx[third_nib];
+                            // Vx[second_nib] = Vx[third_nib]; // COSMAC feature
                             unsigned char bit_8XY6 = Vx[second_nib] & 0x01;
                             Vx[second_nib] >>= 1;
                             Vx[0xF] = bit_8XY6;
@@ -308,7 +311,7 @@ int main(int argc, char** argv) {
                                 Vx[0xF] = 1;
                             break;
                         case (0xE): // 8XYE - shift left
-                            // Vx[second_nib] = Vx[third_nib];
+                            // Vx[second_nib] = Vx[third_nib]; // COSMAC feature
                             unsigned char bit_8XYE = (Vx[second_nib] & 0x80) >> 7;
                             Vx[second_nib] <<= 1;
                             Vx[0xF] = bit_8XYE;
@@ -402,7 +405,8 @@ int main(int argc, char** argv) {
                                     goto wait;   
                                 }
                             }
-wait:
+                            
+                            wait:
                             PC -= 2;
                             break;
                         case (0x15): // FX15 - set delay timer
@@ -415,11 +419,7 @@ wait:
                             I += Vx[second_nib];
                             break;
                         case (0x29): // FX29 - font
-                            unsigned char font_char = Vx[second_nib] & 0xF;
-                            unsigned char offset_FX29 = 0;
-                            while (offset_FX29 < font_char)
-                                offset_FX29 += 5;
-                            I = mem[offset_FX29];
+                            I =  Vx[second_nib] * 5;
                             break;
                         case (0x33): // FX33 - binary-coded decimal
 
@@ -438,10 +438,14 @@ wait:
                         case (0x55): // FX55 - store memory
                             for (int i = 0; i <= second_nib; i++) 
                                 mem[I + i] = Vx[i];
+                            // I += second_nib + 1; // COSMAC feature
+                            I += second_nib; // Chip-48 feature
                             break;
                         case (0x65): // FX65 - load memory
                             for (int i = 0; i <= second_nib; i++)
                                 Vx[i] = mem[I + i];
+                            // I += second_nib + 1; // COSMAC feature
+                            I += second_nib; // Chip-48 feature
                             break;
                     }
                     break;
@@ -497,7 +501,7 @@ wait:
 
     }
 
-quit:
+    quit:
     SDL_Quit();
     return 0;
 }
