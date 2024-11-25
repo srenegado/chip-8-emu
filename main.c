@@ -11,12 +11,29 @@
 #define DISPLAY_HEIGHT_PX 32
 #define SCALE 16
 
+
 typedef struct chip8_specs {
     uint8_t keyboard[16];
     bool running;
+    uint8_t instr_per_frame; 
+    uint8_t mem[4096];       // Main memory
+    // PC
+    // draw_flag
+    // renderer
+    // display_arr
+    // SP
+    // Vx
+    // I
+    // delay_timer
+    // sound_timer
+    // expecting key
+    // expecting release
 } chip8_specs;
 
-
+// struct keyboard 
+//   pressed
+//  expecting key
+// expecting release
 /**
  * Read and store the key the user has pressed or released 
  */
@@ -149,6 +166,13 @@ void process_keyboard(chip8_specs* chip8) {
 }
 
 
+void fetch_decode_execute() {
+    
+    
+    return;
+}
+
+
 int main(int argc, char** argv) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO);
 
@@ -167,8 +191,9 @@ int main(int argc, char** argv) {
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048); // stereo, 44100 Hz
     Mix_Chunk* sound_timer_beep = Mix_LoadWAV("audio/microwave_beep.wav");
 
-    // Main memory
-    uint8_t mem[4096] = {
+    // Store font in first 512 bytes of memory
+    memset(chip8.mem, 0, sizeof(chip8.mem));
+    uint8_t font[80] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -185,11 +210,12 @@ int main(int argc, char** argv) {
         0xE0, 0x90, 0x90, 0x90, 0xE0, // D
         0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
         0xF0, 0x80, 0xF0, 0x80, 0x80, // F
-    }; // store font in first 512 bytes
+    }; 
+    memcpy(&chip8.mem[0], font, sizeof(font));
 
     // Load ROM into memory
     uint16_t start = 0x200;
-    uint8_t* start_addr = &mem[start];
+    uint8_t* start_addr = &chip8.mem[start];
     FILE* rom_file = NULL;
     rom_file = fopen(argv[1], "rb");
     fread(start_addr, 4096 - 512, 1, rom_file);
@@ -227,8 +253,8 @@ int main(int argc, char** argv) {
         for (int i = 0; i < instr_per_frame; i++) { 
 
             // Fetch: copy instruction PC is pointing to
-            uint8_t msb = mem[PC];
-            uint8_t lsb = mem[PC + 1]; // NN
+            uint8_t msb = chip8.mem[PC];
+            uint8_t lsb = chip8.mem[PC + 1]; // NN
 
             // Extract values for decoding
             uint8_t first_nib = (msb >> 4) & 0xF;
@@ -363,7 +389,7 @@ int main(int argc, char** argv) {
                     Vx[0xF] = 0; // turn off collision
 
                     for (int i = 0; i < fourth_nib; i++) { // read N bytes    
-                        uint8_t byte = mem[I + i]; // start from I
+                        uint8_t byte = chip8.mem[I + i]; // start from I
 
                         for (int j = 7; j >= 0; j--) { // read each bit
                             uint8_t bit = (byte & (1 << j)) >> j;
@@ -446,26 +472,26 @@ int main(int argc, char** argv) {
                         case (0x33): // FX33 - binary-coded decimal
 
                             // Hundreds place
-                            mem[I] = (uint8_t)
+                            chip8.mem[I] = (uint8_t)
                                 floor(Vx[second_nib] / 100) % 10;
                             
                             // Tens place
-                            mem[I + 1] = (uint8_t)
+                            chip8.mem[I + 1] = (uint8_t)
                                 floor(Vx[second_nib] / 10) % 10; 
                             
                             // Ones place
-                            mem[I + 2] = Vx[second_nib] % 10;
+                            chip8.mem[I + 2] = Vx[second_nib] % 10;
 
                             break;
                         case (0x55): // FX55 - store memory
                             for (int i = 0; i <= second_nib; i++) 
-                                mem[I + i] = Vx[i];
+                                chip8.mem[I + i] = Vx[i];
                             // I += second_nib + 1; // COSMAC VIP feature
                             // I += second_nib; // Chip-48 feature
                             break;
                         case (0x65): // FX65 - load memory
                             for (int i = 0; i <= second_nib; i++)
-                                Vx[i] = mem[I + i];
+                                Vx[i] = chip8.mem[I + i];
                             // I += second_nib + 1; // COSMAC VIP feature
                             // I += second_nib; // Chip-48 feature
                             break;
