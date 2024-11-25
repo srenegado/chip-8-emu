@@ -25,7 +25,9 @@ typedef struct chip8_specs {
     uint8_t instr_per_frame; 
     uint8_t mem[4096];       // Main memory
     uint16_t PC;             // Program counter
-    display_specs display;
+    display_specs display;   
+    uint16_t stack[16];      // Stack: stores up to 16 addresses
+    int8_t SP;               // Stack pointer
     // draw_flag
     // SP
     // Vx
@@ -232,8 +234,8 @@ int main(int argc, char** argv) {
     uint8_t delay_timer = {0};
     uint8_t sound_timer = {0};
     chip8.PC = 0x200;
-    uint16_t stack[16] = {0}; // for storing up to 16 addresses
-    int8_t SP = -1;
+    memset(chip8.stack, 0 ,sizeof(chip8.stack));
+    chip8.SP = -1;
 
     int cpu_freq = 500; // instructions per second (1 instruction ~ 1 cycle)
     int refresh_rate = 60; // frames per second
@@ -285,8 +287,8 @@ int main(int argc, char** argv) {
                             memset(chip8.display.bits, 0, sizeof(chip8.display.bits));  
                             break;
                         case (0xEE): // 00EE - return subroutine
-                            chip8.PC = stack[SP];
-                            SP--;
+                            chip8.PC = chip8.stack[chip8.SP];
+                            chip8.SP--;
                             break;
                     }                    
                     break;
@@ -294,8 +296,8 @@ int main(int argc, char** argv) {
                     chip8.PC = lowest_12_bits;  
                     break;
                 case (0x2): // 2NNN - call subroutine
-                    SP++;
-                    stack[SP] = chip8.PC;
+                    chip8.SP++;
+                    chip8.stack[chip8.SP] = chip8.PC;
                     chip8.PC = lowest_12_bits;
                     break;
                 case (0x3): // 3XNN - skip conditionally
