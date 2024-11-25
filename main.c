@@ -1,4 +1,5 @@
 #include <SDL.h>
+#include <SDL_scancode.h>
 #include <SDL_mixer.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -86,52 +87,52 @@ int main(int argc, char** argv) {
                 case SDL_KEYDOWN: // user pressed a key
 
                     switch (event.key.keysym.scancode) { // read key
-                        case 30:
+                        case SDL_SCANCODE_1:
                             keyboard[0x1] = 1;
                             break;
-                        case 31: 
+                        case SDL_SCANCODE_2: 
                             keyboard[0x2] = 1;
                             break;
-                        case 32: 
+                        case SDL_SCANCODE_3: 
                             keyboard[0x3] = 1;
                             break;
-                        case 33:
+                        case SDL_SCANCODE_4:
                             keyboard[0xC] = 1;
                             break;
-                        case 20: 
+                        case SDL_SCANCODE_Q: 
                             keyboard[0x4] = 1;
                             break;
-                        case 26: 
+                        case SDL_SCANCODE_W: 
                             keyboard[0x5] = 1;
                             break;
-                        case 8: 
+                        case SDL_SCANCODE_E: 
                             keyboard[0x6] = 1;
                             break;
-                        case 21: 
+                        case SDL_SCANCODE_R: 
                             keyboard[0xD] = 1;
                             break;
-                        case 4:
+                        case SDL_SCANCODE_A:
                             keyboard[0x7] = 1;
                             break;
-                        case 22:
+                        case SDL_SCANCODE_S:
                             keyboard[0x8] = 1;
                             break;
-                        case 7: 
+                        case SDL_SCANCODE_D: 
                             keyboard[0x9] = 1;
                             break;
-                        case 9:
+                        case SDL_SCANCODE_F:
                             keyboard[0xE] = 1;
                             break;
-                        case 29: 
+                        case SDL_SCANCODE_Z: 
                             keyboard[0xA] = 1;
                             break;
-                        case 27: 
+                        case SDL_SCANCODE_X: 
                             keyboard[0x0] = 1;
                             break;
-                        case 6: 
+                        case SDL_SCANCODE_C: 
                             keyboard[0xB] = 1;
                             break;
-                        case 25: 
+                        case SDL_SCANCODE_V: 
                             keyboard[0xF] = 1;
                             break;
                         case 41: // esc
@@ -144,52 +145,52 @@ int main(int argc, char** argv) {
                 case SDL_KEYUP: // user released a key
 
                     switch (event.key.keysym.scancode) { // read key
-                        case 30:
+                        case SDL_SCANCODE_1:
                             keyboard[0x1] = 0;
                             break;
-                        case 31: 
+                        case SDL_SCANCODE_2: 
                             keyboard[0x2] = 0;
                             break;
-                        case 32: 
+                        case SDL_SCANCODE_3: 
                             keyboard[0x3] = 0;
                             break;
-                        case 33:
+                        case SDL_SCANCODE_4:
                             keyboard[0xC] = 0;
                             break;
-                        case 20: 
+                        case SDL_SCANCODE_Q: 
                             keyboard[0x4] = 0;
                             break;
-                        case 26: 
+                        case SDL_SCANCODE_W: 
                             keyboard[0x5] = 0;
                             break;
-                        case 8: 
+                        case SDL_SCANCODE_E: 
                             keyboard[0x6] = 0;
                             break;
-                        case 21: 
+                        case SDL_SCANCODE_R: 
                             keyboard[0xD] = 0;
                             break;
-                        case 4:
+                        case SDL_SCANCODE_A:
                             keyboard[0x7] = 0;
                             break;
-                        case 22:
+                        case SDL_SCANCODE_S:
                             keyboard[0x8] = 0;
                             break;
-                        case 7: 
+                        case SDL_SCANCODE_D: 
                             keyboard[0x9] = 0;
                             break;
-                        case 9:
+                        case SDL_SCANCODE_F:
                             keyboard[0xE] = 0;
                             break;
-                        case 29: 
+                        case SDL_SCANCODE_Z: 
                             keyboard[0xA] = 0;
                             break;
-                        case 27: 
+                        case SDL_SCANCODE_X: 
                             keyboard[0x0] = 0;
                             break;
-                        case 6: 
+                        case SDL_SCANCODE_C: 
                             keyboard[0xB] = 0;
                             break;
-                        case 25: 
+                        case SDL_SCANCODE_V: 
                             keyboard[0xF] = 0;
                             break;
                     }
