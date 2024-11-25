@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     unsigned char sound_timer = {0};
     unsigned short PC = 0x200; // program counter
     unsigned short stack[16] = {0}; // for storing up to 16 addresses
-    unsigned char stack_ptr = 0;
+    char SP = -1;
 
     int cpu_freq = 500; // instructions per second (1 instruction ~ 1 cycle)
     int refresh_rate = 60; // frames per second
@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
                 case SDL_KEYUP: // user released a key
 
                     switch (event.key.keysym.scancode) { // read key
-                      case 30:
+                        case 30:
                             keyboard[0x1] = 0;
                             break;
                         case 31: 
@@ -232,9 +232,8 @@ int main(int argc, char** argv) {
                             memset(display_arr, 0, sizeof(display_arr));  
                             break;
                         case (0xEE): // 00EE - return subroutine
-                            stack_ptr--;
-                            PC = stack[stack_ptr];
-                            stack[stack_ptr] = 0;
+                            PC = stack[SP];
+                            SP--;
                             break;
                     }                    
                     break;
@@ -242,9 +241,10 @@ int main(int argc, char** argv) {
                     PC = lowest_12_bits;  
                     break;
                 case (0x2): // 2NNN - call subroutine
-                    stack[stack_ptr] = PC;
-                    stack_ptr++;
+                    SP++;
+                    stack[SP] = PC;
                     PC = lowest_12_bits;
+                    break;
                 case (0x3): // 3XNN - skip conditionally
                     if (Vx[second_nib] == lsb) 
                         PC += 2;
@@ -270,15 +270,15 @@ int main(int argc, char** argv) {
                             break;
                         case (0x1): // 8XY1 - OR
                             Vx[second_nib] |= Vx[third_nib];
-                            // Vx[0xF] = 0; // COSMAC feature 
+                            // Vx[0xF] = 0; // COSMAC VIP feature 
                             break;
                         case (0x2): // 8XY2 - AND
                             Vx[second_nib] &= Vx[third_nib];
-                            // Vx[0xF] = 0; // COSMAC feature
+                            // Vx[0xF] = 0; // COSMAC VIP feature
                             break;
                         case (0x3): // 8XY3 - XOR
                             Vx[second_nib] ^= Vx[third_nib];
-                            // Vx[0xF] = 0; // COSMAC feature
+                            // Vx[0xF] = 0; // COSMAC VIP feature
                             break;
                         case (0x4): // 8XY4 - ADD
                             unsigned short sum = Vx[second_nib] + Vx[third_nib];
@@ -297,7 +297,7 @@ int main(int argc, char** argv) {
                                 Vx[0xF] = 1;
                             break;
                         case (0x6): // 8XY6 - shift right
-                            // Vx[second_nib] = Vx[third_nib]; // COSMAC feature
+                            // Vx[second_nib] = Vx[third_nib]; // COSMAC VIP feature
                             unsigned char bit_8XY6 = Vx[second_nib] & 0x01;
                             Vx[second_nib] >>= 1;
                             Vx[0xF] = bit_8XY6;
@@ -311,7 +311,7 @@ int main(int argc, char** argv) {
                                 Vx[0xF] = 1;
                             break;
                         case (0xE): // 8XYE - shift left
-                            // Vx[second_nib] = Vx[third_nib]; // COSMAC feature
+                            // Vx[second_nib] = Vx[third_nib]; // COSMAC VIP feature
                             unsigned char bit_8XYE = (Vx[second_nib] & 0x80) >> 7;
                             Vx[second_nib] <<= 1;
                             Vx[0xF] = bit_8XYE;
@@ -327,6 +327,7 @@ int main(int argc, char** argv) {
                     break;
                 case (0xB): // BNNN - jump with offset
                     PC = lowest_12_bits + Vx[0x0];
+                    break;
                 case (0xC): // CNNN - random
                     Vx[second_nib] = (unsigned char)rand() & lsb;
                     break;
@@ -438,19 +439,28 @@ int main(int argc, char** argv) {
                         case (0x55): // FX55 - store memory
                             for (int i = 0; i <= second_nib; i++) 
                                 mem[I + i] = Vx[i];
-                            // I += second_nib + 1; // COSMAC feature
-                            I += second_nib; // Chip-48 feature
+                            // I += second_nib + 1; // COSMAC VIP feature
+                            // I += second_nib; // Chip-48 feature
                             break;
                         case (0x65): // FX65 - load memory
                             for (int i = 0; i <= second_nib; i++)
                                 Vx[i] = mem[I + i];
-                            // I += second_nib + 1; // COSMAC feature
-                            I += second_nib; // Chip-48 feature
+                            // I += second_nib + 1; // COSMAC VIP feature
+                            // I += second_nib; // Chip-48 feature
                             break;
                     }
                     break;
             }
+
         }
+
+        uint32_t end_ms = SDL_GetTicks();
+        uint32_t time_taken_ms = end_ms - start_ms;
+        
+        if (time_taken_ms < frame_ms) {
+            uint32_t delay_ms = frame_ms - time_taken_ms;
+            SDL_Delay(delay_ms);
+        } 
 
         /*
          * Due to how SDL_RenderPresent() is implemented,
@@ -482,14 +492,6 @@ int main(int argc, char** argv) {
             // Update display
             SDL_RenderPresent(renderer);
         }
-
-        uint32_t end_ms = SDL_GetTicks();
-        uint32_t time_taken_ms = end_ms - start_ms;
-        
-        if (time_taken_ms < frame_ms) {
-            uint32_t delay_ms = frame_ms - time_taken_ms;
-            SDL_Delay(delay_ms);
-        } 
         
         if (delay_timer > 0) 
             delay_timer--;
