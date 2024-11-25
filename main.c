@@ -12,15 +12,21 @@
 #define SCALE 16
 
 
+typedef struct display_specs {
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    uint8_t bits[DISPLAY_HEIGHT_PX][DISPLAY_WIDTH_PX];
+} display_specs;
+
+
 typedef struct chip8_specs {
     uint8_t keyboard[16];
     bool running;
     uint8_t instr_per_frame; 
     uint8_t mem[4096];       // Main memory
     uint16_t PC;             // Program counter
+    display_specs display;
     // draw_flag
-    // renderer
-    // display_arr
     // SP
     // Vx
     // I
@@ -180,11 +186,11 @@ int main(int argc, char** argv) {
 
     chip8_specs chip8;
 
-    SDL_Window* display = SDL_CreateWindow("Chip-8", 
+    chip8.display.window = SDL_CreateWindow("Chip-8", 
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
         DISPLAY_WIDTH_PX * SCALE, DISPLAY_HEIGHT_PX * SCALE, 0);
-    SDL_Renderer* renderer = SDL_CreateRenderer(display, -1, SDL_RENDERER_ACCELERATED);
-    uint8_t display_arr[DISPLAY_HEIGHT_PX][DISPLAY_WIDTH_PX] = {0};
+    chip8.display.renderer = SDL_CreateRenderer(chip8.display.window, -1, SDL_RENDERER_ACCELERATED);
+    memset(chip8.display.bits, 0, sizeof(chip8.display.bits));
 
 
     // Load "beep" sound effect for sound timer
@@ -274,9 +280,9 @@ int main(int argc, char** argv) {
                     switch (lsb) {
                         case (0xE0): // 00E0 - clear screen
                             draw_flag = true;
-                            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // black
-                            SDL_RenderClear(renderer);
-                            memset(display_arr, 0, sizeof(display_arr));  
+                            SDL_SetRenderDrawColor(chip8.display.renderer, 0, 0, 0, 255); // black
+                            SDL_RenderClear(chip8.display.renderer);
+                            memset(chip8.display.bits, 0, sizeof(chip8.display.bits));  
                             break;
                         case (0xEE): // 00EE - return subroutine
                             chip8.PC = stack[SP];
@@ -395,11 +401,11 @@ int main(int argc, char** argv) {
                             uint8_t bit = (byte & (1 << j)) >> j;
 
                             if (bit == 1) {
-                                if (display_arr[y][x] == 1) { // collision
-                                    display_arr[y][x] = 0;
+                                if (chip8.display.bits[y][x] == 1) { // collision
+                                    chip8.display.bits[y][x] = 0;
                                     Vx[0xF] = 1; 
                                 } else { // no collision
-                                    display_arr[y][x] = 1;
+                                    chip8.display.bits[y][x] = 1;
                                 }
                             } 
 
@@ -525,19 +531,19 @@ int main(int argc, char** argv) {
                     px.y = y * SCALE;
                     px.w = SCALE;
                     px.h = SCALE;
-                    if (display_arr[y][x] == 0) {
-                        SDL_SetRenderDrawColor(renderer, 
+                    if (chip8.display.bits[y][x] == 0) {
+                        SDL_SetRenderDrawColor(chip8.display.renderer, 
                             0, 0, 0, 255); // black 
                     } else { 
-                        SDL_SetRenderDrawColor(renderer, 
+                        SDL_SetRenderDrawColor(chip8.display.renderer, 
                             255, 255, 255, 255); // white
                     }
-                    SDL_RenderFillRect(renderer, &px); 
+                    SDL_RenderFillRect(chip8.display.renderer, &px); 
                 }
             }
 
             // Update display
-            SDL_RenderPresent(renderer);
+            SDL_RenderPresent(chip8.display.renderer);
         }
         
         if (delay_timer > 0) 
