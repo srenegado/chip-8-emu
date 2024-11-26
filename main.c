@@ -46,7 +46,7 @@ typedef struct Chip8 {
 /**
  * Read and store the key the user has pressed or released 
  */
-void process_keyboard(Chip8* chip8) {
+void process_user_keyboard_input(Chip8* chip8) {
     SDL_Event event;
 
     while (SDL_PollEvent(&event)) { 
@@ -507,8 +507,7 @@ int main(int argc, char** argv) {
 
         chip8.display.draw_flag = false;
 
-        // Process user key presses
-        process_keyboard(&chip8);
+        process_user_keyboard_input(&chip8); 
 
         // Each frame should do a fixed number of instructions 
         for (int i = 0; i < chip8.instr_per_frame; i++)  
