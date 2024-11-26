@@ -205,7 +205,7 @@ void fetch_decode_execute(Chip8* chip8) {
                     SDL_RenderClear(chip8->display.renderer);
                     memset(chip8->display.bits, 0, sizeof(chip8->display.bits));  
                     break;
-                case (0xEE): // 00EE - Eeturn from subroutine
+                case (0xEE): // 00EE - Return from subroutine
                     chip8->PC = chip8->stack[chip8->SP];
                     chip8->SP--;
                     break;
