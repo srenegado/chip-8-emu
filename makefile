@@ -1,5 +1,5 @@
 main: main.c
-	gcc main.c -o main `sdl2-config --cflags --libs` -I./include -lSDL2_mixer 
+	gcc main.c chip8.c -o chip8 `sdl2-config --cflags --libs` -I./include -lSDL2_mixer
 
 clean:
-	rm -f main
+	rm -f chip8

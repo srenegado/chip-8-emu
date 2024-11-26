@@ -16,7 +16,7 @@ make
 
 Load up a game and have some funs.
 ```
-./main games/super_cool_game.ch8
+./chip8 games/super_cool_game.ch8
 ```
 
 ## TODOs
