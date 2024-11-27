@@ -141,6 +141,8 @@ int main(int argc, char** argv) {
 
     }
 
+    SDL_DestroyRenderer(chip8.display.renderer);
+    SDL_DestroyWindow(chip8.display.window);
     SDL_Quit();
     return 0;
 }
