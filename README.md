@@ -5,7 +5,8 @@ An emulator/interpreter of [Chip-8](https://en.wikipedia.org/wiki/CHIP-8) built 
 Play a whole bunch of retro games or even some that are modern and community-made!  
 
 ## Dependencies
-https://wiki.libsdl.org/SDL2/Installation
+- https://wiki.libsdl.org/SDL2/Installation
+- https://wiki.libsdl.org/SDL2_mixer/FrontPage
 
 ## Usage
 
