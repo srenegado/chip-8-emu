@@ -5,8 +5,7 @@ An emulator/interpreter of [Chip-8](https://en.wikipedia.org/wiki/CHIP-8) built 
 Play a whole bunch of retro games or even some that are modern and community-made!  
 
 ## Dependencies
-- https://wiki.libsdl.org/SDL2/Installation
-- https://wiki.libsdl.org/SDL2_mixer/FrontPage
+- [SDL2](https://wiki.libsdl.org/SDL2/Installation)
 
 ## Usage
 
@@ -25,3 +24,8 @@ Extensions if I ever wanted to implement them:
 - [ ] Add Super-Chip support
 - [ ] Add XO-Chip support
 - [ ] Add configurability for different platforms (Chip-8 / Super-Chip / XO-Chip)
+
+## References
+- [Tobias' Guide to making a CHIP-8 emulator](https://tobiasvl.github.io/blog/write-a-chip-8-emulator/) was very helpful to get the concepts down.
+- [Cowgod's Technical Reference](http://devernay.free.fr/hacks/chip8/C8TECH10.HTM) for checking opcodes.
+- Audio programming was pretty new for me and this covered the basics pretty well: [Playing a single note with SDL2](https://blog.fredrb.com/2023/08/08/audio-programming-note-sdl/).
