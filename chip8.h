@@ -2,12 +2,15 @@
 #define _CHIP8_H_
 
 #include <SDL.h>
+#include <SDL_video.h>
+#include <SDL_audio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
 #define DISPLAY_WIDTH_PX 64
 #define DISPLAY_HEIGHT_PX 32
 #define SCALE 16
+#define SAMPLE_RATE 44100
 
 
 typedef struct Display {
@@ -25,6 +28,14 @@ typedef struct Keyboard {
 } Keyboard;
 
 
+typedef struct Audio {
+    SDL_AudioSpec spec;
+    SDL_AudioDeviceID devid;
+    float sample_pt;         // Current point to sample from signal
+    float note_freq;         
+} Audio;
+
+
 typedef struct Chip8 {
     uint8_t mem[4096];       // Main memory
     uint8_t Vx[16];          // General registers: V0 to VF
@@ -36,7 +47,6 @@ typedef struct Chip8 {
     int8_t SP;               // Stack pointer
     Keyboard keyboard;
     Display display;
-    uint8_t instr_per_frame;
     bool running; 
 } Chip8;
 
@@ -51,6 +61,13 @@ void process_user_keyboard_input(Chip8* chip8);
  * Emulate a CPU instruction cycle
  */
 void fetch_decode_execute(Chip8* chip8);
+
+
+/**
+ * Callback function for sound timer beep 
+ * Beep is a single tone, so we're sampling a simple square wave
+ */
+void callback(void* userdata, Uint8* stream, int len);
 
 
 #endif

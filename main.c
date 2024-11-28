@@ -1,8 +1,3 @@
-#include <SDL.h>
-#include <SDL_mixer.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <math.h>
 #include <time.h>
 
 #include "chip8.h"
@@ -22,7 +17,7 @@ int main(int argc, char** argv) {
 
     // Initialize memory 
     memset(chip8.mem, 0, sizeof(chip8.mem));
-    uint8_t font[80] = { // Store font in fire 512 bytes in memory
+    uint8_t font[80] = { // Store font in first 512 bytes in memory
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -63,17 +58,29 @@ int main(int argc, char** argv) {
     int cpu_freq = 500;                               // instructions per second
     int refresh_rate = 60;                            // frames per second (FPS)
     int frame_ms = 1000 / refresh_rate;               // time (in ms) per frame
-    chip8.instr_per_frame = cpu_freq / refresh_rate;
+    int instr_per_frame = cpu_freq / refresh_rate;
 
     // Initialize keyboard
     memset(chip8.keyboard.pressed, 0, sizeof(chip8.keyboard.pressed));
     chip8.keyboard.expecting_release = false;
 
-    // Load "beep" sound effect for sound timer
-    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048); // stereo, 44100 Hz
-    Mix_Chunk* sound_timer_beep = Mix_LoadWAV("audio/microwave_beep.wav");
+    /*
+     * Set up audio for sound timer beep
+     * https://wiki.libsdl.org/SDL2/SDL_OpenAudioDevice
+     */
+    Audio audio = {
+        .spec.freq = SAMPLE_RATE,    // samples (frames) per second (Hz)
+        .spec.format = AUDIO_S16SYS,
+        .spec.samples = 1024,        // size of audio buffer (sample frames, power of 2)
+        .spec.channels = 1,          // mono
+        .spec.callback = callback,
+        .spec.userdata = &audio,
+        .devid = SDL_OpenAudioDevice(NULL, 0, &audio.spec, NULL, 0),
+        .sample_pt = 0,
+        .note_freq = 440             // A4 note 
+    };
 
-    srand(time(NULL));
+    srand(time(NULL)); // For random number generating
 
     // Main loop
     chip8.running = true;
@@ -85,12 +92,15 @@ int main(int argc, char** argv) {
         process_user_keyboard_input(&chip8); 
 
         // Each frame should do a fixed number of instructions 
-        for (int i = 0; i < chip8.instr_per_frame; i++)  
+        for (int i = 0; i < instr_per_frame; i++)  
             fetch_decode_execute(&chip8);
-        
+
         uint32_t end_ms = SDL_GetTicks();
         uint32_t time_taken_ms = end_ms - start_ms;
         
+        if (chip8.sound_timer > 0) // BEEP!!!
+            SDL_PauseAudioDevice(audio.devid, 0);
+
         // Each frame should take a fixed number of seconds
         if (time_taken_ms < frame_ms) {
             uint32_t delay_ms = frame_ms - time_taken_ms;
@@ -135,7 +145,7 @@ int main(int argc, char** argv) {
             chip8.delay_timer--;
 
         if (chip8.sound_timer > 0) {
-            Mix_PlayChannel(-1, sound_timer_beep, 0);
+            SDL_PauseAudioDevice(audio.devid, 1);
             chip8.sound_timer--;
         }
 

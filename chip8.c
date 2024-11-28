@@ -1,7 +1,4 @@
-#include <SDL.h>
 #include <SDL_scancode.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include <math.h>
 
 #include "chip8.h"
@@ -394,6 +391,32 @@ void fetch_decode_execute(Chip8* chip8) {
             }
             break;
     }
+
+    return;
+}
+
+
+/**
+ * Callback function for sound timer beep 
+ * Beep is a single tone, so we're sampling a simple square wave
+ */
+void callback(void* userdata, Uint8* stream, int len) {
+
+    Audio* audio = (Audio*) userdata;
+
+    Sint16* sstream = (Sint16*) stream;   // using AUDIO_S16SYS format
+    int samples = len / sizeof(Sint16);   // size of stream in samples  
+
+    // Calculate sample step size
+    float sample_per_cycle = (float)SAMPLE_RATE / audio->note_freq;
+    float step_size = (2*M_PI) / sample_per_cycle; // radians per sample 
+
+    // Fill audio buffer stream with samples
+    for (int i = 0; i < samples; i++) {
+        audio->sample_pt += step_size;
+        float sin_wave_sample = sinf(audio->sample_pt);
+        sstream[i] = (sin_wave_sample > 0) ? 3000 : -3000;
+    } 
 
     return;
 }
