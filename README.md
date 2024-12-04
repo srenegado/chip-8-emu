@@ -4,7 +4,7 @@ An emulator/interpreter of [Chip-8](https://en.wikipedia.org/wiki/CHIP-8) built 
 
 Play a whole bunch of retro games!  
 
-![Slippery Slope by JohnEarnest](https://raw.githubusercontent.com/srenegado/chip-8-emu/refs/heads/main/doc/showcase.gif)
+![gameplay](https://raw.githubusercontent.com/srenegado/chip-8-emu/refs/heads/main/doc/showcase.gif "Slippery Slope by JohnEarnest")
 
 ## Dependencies
 First you'll need:
